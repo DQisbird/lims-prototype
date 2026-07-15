@@ -680,9 +680,13 @@ function viewReviewWorksheet(id) {
   } else {
     var rows = r.reviewers.map(function(rv, i) {
       var filled = rv.result ? true : false;
+      var isMe = rv.name === LOGIN_USER;
+      var btnHtml = isMe
+        ? '<button class="btn btn-primary btn-sm" onclick="fillReviewWorksheet(\'' + id + '\',' + i + ')">' + (filled ? '修改' : '填写') + '</button>'
+        : (filled ? statusTag(rv.result) : '<span style="color:#bbb;font-size:11px">等待填写</span>');
       return '<tr><td>' + rv.name + '</td><td>' + rv.role + '</td>' +
         '<td>' + (filled ? statusTag(rv.result) : '<span style="color:#999">未填写</span>') + '</td>' +
-        '<td><button class="btn btn-primary btn-sm" onclick="fillReviewWorksheet(\'' + id + '\',' + i + ')">' + (filled ? '修改' : '填写') + '</button></td></tr>';
+        '<td>' + btnHtml + '</td></tr>';
     }).join('');
     rightHtml = '<div class="ws-right"><div class="ws-right-title">评审人员填写进度</div>' +
       '<table><thead><tr><th>评审人</th><th>角色</th><th>结论</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table>' +
@@ -698,6 +702,7 @@ function viewReviewWorksheet(id) {
 function fillReviewWorksheet(id, idx) {
   var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
   var rv = r.reviewers[idx];
+  if (rv.name !== LOGIN_USER) { alert('只能填写自己的评审意见'); return; }
   document.querySelector('.modal').classList.add('modal-wide');
 
   var itemFields = ITEM_KEYS.map(function(k) {
@@ -740,6 +745,8 @@ function submitReviewItem(id, idx) {
 }
 
 function finalizeReview(id) {
+  // 只有质量负责人才能汇总评审结论
+  if (LOGIN_USER !== '张工') { alert('仅质量负责人可汇总评审结论'); return; }
   var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
   // Check all reviewers have filled
   var unfilled = r.reviewers.filter(function(rv) { return !rv.result; });
