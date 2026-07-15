@@ -236,6 +236,7 @@ var curPage = 'todo';
 
 // 当前登录用户（原型硬编码）
 var LOGIN_USER = '张工';
+var reviewPage = 1, reviewPageSize = 5, reviewFilteredData = [];
 
 // 计算待办数量
 function pendingCount() {
@@ -519,47 +520,69 @@ function filterTable(keyword, tableId) {
 // ============================================================
 // 1.1 合同评审 - 列表页
 // ============================================================
-function pageReview() {
-  var rows = REVIEWS.map(function(r) {
-    var btns = '';
-    if (r.status === 'draft') {
-      btns = '<button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button>' +
-        ' <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
-    } else if (r.status === 'pending') {
-      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
-    } else if (r.status === 'done') {
-      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>' +
-        ' <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
-      if (r.conclusion === '不通过') btns += ' <button class="btn btn-warning btn-sm" onclick="refireReview(\'' + r.id + '\')">重新发起</button>';
-    }
-    return '<tr>' +
-      '<td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
-      '<td>' + r.proj + '</td>' +
-      '<td>' + r.client + '</td>' +
-      '<td>' + r.ctype + '</td>' +
-      '<td>' + r.domains.join(',') + '</td>' +
-      '<td>' + statusTag(r.conclusion) + '</td>' +
-      '<td>' + r.date + '</td>' +
-      '<td>' + r.initiator + '</td>' +
-      '<td>' + btns + '</td>' +
-      '</tr>';
-  }).join('');
+function reviewActionBtns(r) {
+  if (r.status === 'draft') return '<button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
+  if (r.status === 'pending') return '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
+  var btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button> <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
+  if (r.conclusion === '不通过') btns += ' <button class="btn btn-warning btn-sm" onclick="refireReview(\'' + r.id + '\')">重新发起</button>';
+  return btns;
+}
 
-  return '<div class="card">' +
-    '<div class="card-title">合同评审</div>' +
-    '<div class="toolbar">' +
-      '<input placeholder="评审编号" id="rf_filter_id">' +
-      '<input placeholder="项目名称" id="rf_filter_proj">' +
-      '<input placeholder="客户名称" id="rf_filter_client">' +
-      '<select id="rf_filter_conclusion"><option value="">全部结论</option><option>未提交</option><option>评审中</option><option>通过</option><option>不通过</option></select>' +
-      '<input type="date" id="rf_filter_from">-<input type="date" id="rf_filter_to">' +
-      '<button class="btn btn-primary" onclick="filterReviews()">&#128269; 查询</button>' +
-      '<button class="btn btn-success" onclick="showReviewForm()">发起评审</button>' +
-    '</div>' +
-    '<table><thead><tr>' +
-      '<th>评审编号</th><th>项目名称</th><th>客户名称</th><th>合同类型</th><th>拟检测领域</th><th>评审结论</th><th>评审日期</th><th>发起人</th><th>操作</th>' +
-    '</tr></thead><tbody>' + rows + '</tbody></table>' +
+function reviewTableRows(data) {
+  return data.map(function(r) {
+    return '<tr><td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
+      '<td>' + r.proj + '</td><td>' + r.client + '</td><td>' + r.ctype + '</td>' +
+      '<td>' + r.domains.join(',') + '</td><td>' + statusTag(r.conclusion) + '</td>' +
+      '<td>' + r.date + '</td><td>' + r.initiator + '</td><td>' + reviewActionBtns(r) + '</td></tr>';
+  }).join('');
+}
+
+function reviewToolbar() {
+  return '<div class="toolbar">' +
+    '<input placeholder="评审编号" id="rf_filter_id">' +
+    '<input placeholder="项目名称" id="rf_filter_proj">' +
+    '<input placeholder="客户名称" id="rf_filter_client">' +
+    '<select id="rf_filter_conclusion"><option value="">全部结论</option><option>未提交</option><option>评审中</option><option>通过</option><option>不通过</option></select>' +
+    '<input type="date" id="rf_filter_from">-<input type="date" id="rf_filter_to">' +
+    '<button class="btn btn-primary" onclick="filterReviews()">&#128269; 查询</button>' +
+    '<button class="btn btn-success" onclick="showReviewForm()">发起评审</button>' +
     '</div>';
+}
+
+function reviewPagination() {
+  var total = Math.ceil(reviewFilteredData.length / reviewPageSize);
+  if (total <= 1) return '';
+  var html = '<div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-top:16px;font-size:13px;flex-wrap:wrap">';
+  if (reviewPage > 1) html += '<button class="btn btn-default btn-sm" onclick="goReviewPage(' + (reviewPage - 1) + ')">上一页</button>';
+  var start = Math.max(1, reviewPage - 3), end = Math.min(total, reviewPage + 3);
+  if (start > 1) { html += '<button class="btn btn-default btn-sm" onclick="goReviewPage(1)">1</button>'; if (start > 2) html += '<span style="color:#999">…</span>'; }
+  for (var i = start; i <= end; i++) {
+    html += '<button class="btn btn-sm" style="' + (i === reviewPage ? 'background:#1890ff;color:#fff' : 'background:#fff;color:#333;border:1px solid #d9d9d9') + '" onclick="goReviewPage(' + i + ')">' + i + '</button>';
+  }
+  if (end < total) { if (end < total - 1) html += '<span style="color:#999">…</span>'; html += '<button class="btn btn-default btn-sm" onclick="goReviewPage(' + total + ')">' + total + '</button>'; }
+  if (reviewPage < total) html += '<button class="btn btn-default btn-sm" onclick="goReviewPage(' + (reviewPage + 1) + ')">下一页</button>';
+  html += '<span style="color:#999;margin-left:8px">第' + reviewPage + '页/共' + total + '页（' + reviewFilteredData.length + '条）</span></div>';
+  return html;
+}
+
+function renderReviewList() {
+  var total = reviewFilteredData.length;
+  var start = (reviewPage - 1) * reviewPageSize;
+  var pageData = reviewFilteredData.slice(start, start + reviewPageSize);
+  var emptyRow = total === 0 ? '<tr><td colspan="9" style="text-align:center;color:#999;padding:40px">暂无数据</td></tr>' : '';
+  return '<div class="card"><div class="card-title">合同评审</div>' +
+    reviewToolbar() +
+    '<table><thead><tr><th>评审编号</th><th>项目名称</th><th>客户名称</th><th>合同类型</th><th>拟检测领域</th><th>评审结论</th><th>评审日期</th><th>发起人</th><th>操作</th></tr></thead>' +
+    '<tbody>' + (emptyRow || reviewTableRows(pageData)) + '</tbody></table>' +
+    reviewPagination() + '</div>';
+}
+
+function goReviewPage(n) { reviewPage = n; document.getElementById('content').innerHTML = renderReviewList(); }
+
+function pageReview() {
+  reviewFilteredData = REVIEWS;
+  reviewPage = 1;
+  return renderReviewList();
 }
 
 function filterReviews() {
@@ -567,42 +590,15 @@ function filterReviews() {
   var proj = (document.getElementById('rf_filter_proj').value || '').toLowerCase();
   var client = (document.getElementById('rf_filter_client').value || '').toLowerCase();
   var conclusion = document.getElementById('rf_filter_conclusion').value;
-  var rows = REVIEWS.filter(function(r) {
+  reviewFilteredData = REVIEWS.filter(function(r) {
     if (id && r.id.toLowerCase().indexOf(id) < 0) return false;
     if (proj && r.proj.toLowerCase().indexOf(proj) < 0) return false;
     if (client && r.client.toLowerCase().indexOf(client) < 0) return false;
     if (conclusion && r.conclusion !== conclusion) return false;
     return true;
-  }).map(function(r) {
-    var btns = '';
-    if (r.status === 'draft') {
-      btns = '<button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button>' +
-        ' <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
-    } else if (r.status === 'pending') {
-      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
-    } else if (r.status === 'done') {
-      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>' +
-        ' <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
-      if (r.conclusion === '不通过') btns += ' <button class="btn btn-warning btn-sm" onclick="refireReview(\'' + r.id + '\')">重新发起</button>';
-    }
-    return '<tr>' +
-      '<td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
-      '<td>' + r.proj + '</td><td>' + r.client + '</td><td>' + r.ctype + '</td>' +
-      '<td>' + r.domains.join(',') + '</td><td>' + statusTag(r.conclusion) + '</td>' +
-      '<td>' + r.date + '</td><td>' + r.initiator + '</td><td>' + btns + '</td></tr>';
-  }).join('');
-  document.getElementById('content').innerHTML = '<div class="card">' +
-    '<div class="card-title">合同评审</div>' +
-    '<div class="toolbar">' +
-      '<input placeholder="评审编号" id="rf_filter_id" value="' + (document.getElementById('rf_filter_id') ? document.getElementById('rf_filter_id').value : '') + '">' +
-      '<input placeholder="项目名称" id="rf_filter_proj">' +
-      '<input placeholder="客户名称" id="rf_filter_client">' +
-      '<select id="rf_filter_conclusion"><option value="">全部</option><option>未提交</option><option>评审中</option><option>通过</option><option>不通过</option></select>' +
-      '<input type="date">-<input type="date">' +
-      '<button class="btn btn-primary" onclick="filterReviews()">&#128269; 查询</button>' +
-      '<button class="btn btn-success" onclick="showReviewForm()">发起评审</button>' +
-    '</div>' +
-    '<table><thead><tr><th>评审编号</th><th>项目名称</th><th>客户名称</th><th>合同类型</th><th>拟检测领域</th><th>评审结论</th><th>评审日期</th><th>发起人</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  });
+  reviewPage = 1;
+  document.getElementById('content').innerHTML = renderReviewList();
 }
 
 // ============================================================
