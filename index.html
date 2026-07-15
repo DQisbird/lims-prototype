@@ -926,19 +926,60 @@ function finalizeReview(id) {
 // ============================================================
 function printReview(id) {
   var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
-  var w = window.open('', '_blank', 'width=800,height=600');
-  var itemsHtml = ITEM_KEYS.map(function(k) { return '<td>' + ITEM_LABELS[k] + '</td>'; }).join('');
+  if (!r) return;
+  var w = window.open('', '_blank', 'width=900,height=700');
+
+  var domainStr = r.domains.map(function(d) { return DOMAIN_LABELS[d] + '(' + d + ')'; }).join('、');
+
+  // 构建评审人记录HTML
+  var reviewerHtml = '';
+  r.reviewers.forEach(function(rv, i) {
+    var itemRows = '';
+    for (var j = 0; j < ITEM_KEYS.length; j += 2) {
+      var k1 = ITEM_KEYS[j], k2 = ITEM_KEYS[j + 1];
+      itemRows += '<tr>' +
+        '<td width="180">' + ITEM_LABELS[k1] + '</td><td width="60" style="text-align:center">' + (rv.items[k1] || '-') + '</td>' +
+        (k2 ? '<td width="180">' + ITEM_LABELS[k2] + '</td><td width="60" style="text-align:center">' + (rv.items[k2] || '-') + '</td>' : '<td></td><td></td>') +
+        '</tr>';
+    }
+    reviewerHtml +=
+      '<h3>评审人' + (i + 1) + '：' + rv.name + '（' + rv.role + '）</h3>' +
+      '<table>' + itemRows + '</table>' +
+      '<p style="margin:8px 0 16px"><b>评审结论：</b>' + (rv.result || '待评审') +
+      '　|　<b>评审意见：</b>' + (rv.comment || '无') + '</p>';
+  });
+
   w.document.write(
     '<html><head><title>' + r.id + '</title>' +
-    '<style>body{font-family:SimSun;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:6px;font-size:13px}h2{text-align:center}</style>' +
-    '</head><body>' +
-    '<h2>合同评审记录表</h2><p>编号：' + r.id + ' | 日期：' + r.date + '</p>' +
-    '<table><tr><td width="120">项目名称</td><td>' + r.proj + '</td><td width="120">客户名称</td><td>' + r.client + '</td></tr>' +
-    '<tr><td>合同类型</td><td>' + r.ctype + '</td><td>检测领域</td><td>' + r.domains.join(',') + '</td></tr>' +
-    '<tr><td>评审结论</td><td colspan="3">' + r.conclusion + '</td></tr></table>' +
-    '<\\/script></body></html>'
+    '<style>' +
+    'body{font-family:SimSun;padding:20px;color:#000}' +
+    'table{border-collapse:collapse;width:100%;margin-bottom:8px}' +
+    'td,th{border:1px solid #000;padding:6px;font-size:13px}' +
+    'h2{text-align:center;margin-bottom:4px}' +
+    'h3{margin:16px 0 4px;font-size:14px}' +
+    '@media print{body{padding:10px}}' +
+    '</style></head><body>' +
+    '<h2>合同评审记录表</h2>' +
+    '<p style="text-align:center;margin-top:0">编号：' + r.id + '　|　日期：' + r.date + '</p>' +
+
+    '<table>' +
+    '<tr><td width="100">项目名称</td><td>' + r.proj + '</td><td width="100">客户名称</td><td>' + r.client + '</td></tr>' +
+    '<tr><td>联系人</td><td>' + r.contact + '</td><td>联系方式</td><td>' + r.phone + '</td></tr>' +
+    '<tr><td>合同类型</td><td>' + r.ctype + '</td><td>检测领域</td><td>' + domainStr + '</td></tr>' +
+    '<tr><td>合同金额</td><td>' + (r.contractAmount ? (r.contractAmount >= 10000 ? (r.contractAmount/10000).toFixed(1) + '万元' : r.contractAmount + '元') : '-') + '</td><td>交付日期</td><td>' + (r.deliveryDate || '-') + '</td></tr>' +
+    '<tr><td>交付方式</td><td>' + (r.deliveryMethod || '-') + '</td><td>是否使用标识</td><td>' + (r.useLogo || '-') + '</td></tr>' +
+    '<tr><td>检测内容</td><td colspan="3">' + r.testContent + '</td></tr>' +
+    '<tr><td>标准依据</td><td colspan="3">' + r.standardBasis + '</td></tr>' +
+    '<tr><td>其他要求</td><td colspan="3">' + (r.otherRequirements || '无') + '</td></tr>' +
+    '<tr><td>最终结论</td><td colspan="3"><b>' + r.conclusion + '</b>　|　发起人：' + r.initiator + '</td></tr>' +
+    '</table>' +
+
+    '<h2 style="margin-top:24px">评审人记录</h2>' +
+    reviewerHtml +
+
+    '</body></html>'
   );
-  setTimeout(function() { w.print(); w.close(); }, 300);
+  setTimeout(function() { w.print(); w.close(); }, 400);
 }
 
 // ============================================================
