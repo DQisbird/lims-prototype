@@ -173,6 +173,59 @@ var REVIEWS = [
       { name: '赵工', role: '技术负责人', result: '', items: {}, comment: '' }
     ],
     conclusion: '评审中', date: '2026-06-20', initiator: '张工', status: 'pending'
+  },
+  {
+    id: 'TZJC/JSJL-HTPS2026-07-16',
+    proj: '新能源电池安全检测平台', client: '宁德新能源科技有限公司', contact: '黄总', phone: '13500135001',
+    ctype: '单次合同', testContent: '对新能源电池安全检测平台进行软件质量检测，验证电池状态监控、异常预警、热失控预测等功能',
+    standardBasis: 'GB/T 25000.51-2016', contractAmount: 420000, deliveryDate: '2026-10-01',
+    deliveryMethod: '电子版报告+纸质盖章版', useLogo: '否', otherRequirements: '',
+    domains: ['RJ'],
+    reviewers: [
+      { name: '张工', role: '质量负责人', result: '', items: {}, comment: '' },
+      { name: '李工', role: '部门负责人', result: '', items: {}, comment: '' },
+      { name: '赵工', role: '技术负责人', result: '', items: {}, comment: '' }
+    ],
+    conclusion: '未提交', date: '2026-07-16', initiator: '张工', status: 'draft'
+  },
+  {
+    id: 'TZJC/JSJL-HTPS2026-07-10',
+    proj: '城市轨道交通信号系统', client: '广州地铁集团有限公司', contact: '林总工', phone: '13300133001',
+    ctype: '年度合同', testContent: '对城市轨道交通CBTC信号系统进行安全完整性等级(SIL4)评估，包括硬件可靠性、软件安全性、通信协议符合性',
+    standardBasis: 'GB/T 28808-2012', contractAmount: 680000, deliveryDate: '2026-12-31',
+    deliveryMethod: '电子版报告+纸质盖章版+现场评审会', useLogo: '否', otherRequirements: '需提供CMA资质证明',
+    domains: ['YJ'],
+    reviewers: [
+      { name: '张工', role: '质量负责人', result: '不通过', items: { staff: '是', device: '否', env: '是', delivery: '是', sample: '否', outsource: '是', risk: '是', scope: '是' }, comment: '关键设备未到位，外包方资质存疑，风险不可控' },
+      { name: '李工', role: '部门负责人', result: '不通过', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '否', outsource: '是', risk: '是', scope: '是' }, comment: '样品准备不足，建议补充后再审' }
+    ],
+    conclusion: '不通过', date: '2026-07-10', initiator: '张工', status: 'done'
+  },
+  {
+    id: 'TZJC/JSJL-HTPS2026-07-15',
+    proj: '智能电网调度控制系统', client: '国家电网华东分部', contact: '孙主任', phone: '13100131001',
+    ctype: '单次合同', testContent: '对智能电网调度控制系统D5000进行软件质量检测，包括实时数据采集、AGC控制、状态估计、安全分析等功能',
+    standardBasis: 'GB/T 25000.51-2016', contractAmount: 550000, deliveryDate: '2027-03-01',
+    deliveryMethod: '电子版报告+纸质盖章版', useLogo: '否', otherRequirements: '需通过电力行业信息安全等级保护测评',
+    domains: ['RJ'],
+    reviewers: [
+      { name: '张工', role: '质量负责人', result: '通过', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' }, comment: '条件具备，同意评审' },
+      { name: '李工', role: '部门负责人', result: '通过', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' }, comment: '' }
+    ],
+    conclusion: '通过', date: '2026-07-15', initiator: '张工', status: 'done'
+  },
+  {
+    id: 'TZJC/JSJL-HTPS2026-07-15-2',
+    proj: '光伏电站智能运维平台', client: '隆基绿能科技股份有限公司', contact: '马经理', phone: '13000130001',
+    ctype: '单次合同', testContent: '对光伏电站智能运维平台进行软件质量检测，包括组件监控、发电量预测、故障诊断、清洗调度等功能',
+    standardBasis: 'GB/T 25000.51-2016', contractAmount: 320000, deliveryDate: '2026-11-01',
+    deliveryMethod: '电子版报告', useLogo: '否', otherRequirements: '',
+    domains: ['RJ'],
+    reviewers: [
+      { name: '张工', role: '质量负责人', result: '通过', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' }, comment: '' },
+      { name: '赵工', role: '技术负责人', result: '通过', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' }, comment: '' }
+    ],
+    conclusion: '通过', date: '2026-07-15', initiator: '张工', status: 'done'
   }
 ];
 
