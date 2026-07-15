@@ -534,9 +534,15 @@ function pageTodo() {
   }).join('');
 
   return '<div class="card"><div class="card-title">待办工单</div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option></select>' +
+        '<input placeholder="项目名称" id="todo_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
+        '<input placeholder="客户名称" id="todo_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
+        '<input placeholder="编号" id="todo_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
+        '<button class="btn btn-primary" onclick="filterTodos()" style="padding:6px 14px">🔍 查询</button>' +
+      '</div>' +
       '<div style="color:#666;font-size:13px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）&nbsp;|&nbsp;共 <b>' + todos.length + '</b> 条</div>' +
-      '<input type="text" placeholder="搜索项目/客户/编号..." style="width:220px;padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" oninput="filterTable(this.value,\'todoTable\')">' +
     '</div>' +
     '<table id="todoTable"><thead><tr>' +
       '<th>工单类型</th><th>项目名称</th><th>客户名称</th><th>分配日期</th><th>编号</th><th>操作</th>' +
@@ -570,9 +576,15 @@ function pageDone() {
   }).join('');
 
   return '<div class="card"><div class="card-title">已办工单</div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<select id="done_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option></select>' +
+        '<input placeholder="项目名称" id="done_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
+        '<input placeholder="客户名称" id="done_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
+        '<input placeholder="编号" id="done_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
+        '<button class="btn btn-primary" onclick="filterDones()" style="padding:6px 14px">🔍 查询</button>' +
+      '</div>' +
       '<div style="color:#666;font-size:13px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）&nbsp;|&nbsp;共 <b>' + doneList.length + '</b> 条</div>' +
-      '<input type="text" placeholder="搜索项目/客户/编号..." style="width:220px;padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" oninput="filterTable(this.value,\'doneTable\')">' +
     '</div>' +
     '<table id="doneTable"><thead><tr>' +
       '<th>工单类型</th><th>项目名称</th><th>客户名称</th><th>日期</th><th>编号</th><th>评审结论</th><th>操作</th>' +
@@ -582,13 +594,36 @@ function pageDone() {
 // ============================================================
 // 表格搜索过滤
 // ============================================================
-function filterTable(keyword, tableId) {
-  var tbody = document.querySelector('#' + tableId + ' tbody');
-  if (!tbody) return;
-  var rows = tbody.querySelectorAll('tr');
-  var kw = keyword.toLowerCase();
+function filterTodos() {
+  var type = (document.getElementById('todo_filter_type') || {}).value || '';
+  var proj = ((document.getElementById('todo_filter_proj') || {}).value || '').toLowerCase();
+  var client = ((document.getElementById('todo_filter_client') || {}).value || '').toLowerCase();
+  var id = ((document.getElementById('todo_filter_id') || {}).value || '').toLowerCase();
+  var rows = document.querySelectorAll('#todoTable tbody tr');
   rows.forEach(function(row) {
-    row.style.display = kw ? (row.textContent.toLowerCase().indexOf(kw) >= 0 ? '' : 'none') : '';
+    var tds = row.querySelectorAll('td');
+    var show = true;
+    if (type && tds[0].textContent !== type) show = false;
+    if (proj && tds[1].textContent.toLowerCase().indexOf(proj) < 0) show = false;
+    if (client && tds[2].textContent.toLowerCase().indexOf(client) < 0) show = false;
+    if (id && tds[4].textContent.toLowerCase().indexOf(id) < 0) show = false;
+    row.style.display = show ? '' : 'none';
+  });
+}
+function filterDones() {
+  var type = (document.getElementById('done_filter_type') || {}).value || '';
+  var proj = ((document.getElementById('done_filter_proj') || {}).value || '').toLowerCase();
+  var client = ((document.getElementById('done_filter_client') || {}).value || '').toLowerCase();
+  var id = ((document.getElementById('done_filter_id') || {}).value || '').toLowerCase();
+  var rows = document.querySelectorAll('#doneTable tbody tr');
+  rows.forEach(function(row) {
+    var tds = row.querySelectorAll('td');
+    var show = true;
+    if (type && tds[0].textContent !== type) show = false;
+    if (proj && tds[1].textContent.toLowerCase().indexOf(proj) < 0) show = false;
+    if (client && tds[2].textContent.toLowerCase().indexOf(client) < 0) show = false;
+    if (id && tds[4].textContent.toLowerCase().indexOf(id) < 0) show = false;
+    row.style.display = show ? '' : 'none';
   });
 }
 // ============================================================
@@ -1102,14 +1137,20 @@ function refireReview(id) {
 // 1.2 合同签订
 // ============================================================
 function pageContract() {
-  var kw = (document.getElementById('contractKw') || {}).value || '';
-  var statusFilter = (document.getElementById('contractStatus') || {}).value || '';
+  var idFilter = (document.getElementById('ct_filter_id') || {}).value || '';
+  var nameFilter = (document.getElementById('ct_filter_name') || {}).value || '';
+  var clientFilter = (document.getElementById('ct_filter_client') || {}).value || '';
+  var statusFilter = (document.getElementById('ct_filter_status') || {}).value || '';
+  var fromFilter = (document.getElementById('ct_filter_from') || {}).value || '';
+  var toFilter = (document.getElementById('ct_filter_to') || {}).value || '';
+
   var list = CONTRACTS.slice();
-  if (kw) {
-    var q = kw.toLowerCase();
-    list = list.filter(function(c) { return c.id.toLowerCase().indexOf(q) >= 0 || c.name.toLowerCase().indexOf(q) >= 0 || c.client.toLowerCase().indexOf(q) >= 0; });
-  }
+  if (idFilter) { var q = idFilter.toLowerCase(); list = list.filter(function(c) { return c.id.toLowerCase().indexOf(q) >= 0; }); }
+  if (nameFilter) { var q = nameFilter.toLowerCase(); list = list.filter(function(c) { return c.name.toLowerCase().indexOf(q) >= 0; }); }
+  if (clientFilter) { var q = clientFilter.toLowerCase(); list = list.filter(function(c) { return c.client.toLowerCase().indexOf(q) >= 0; }); }
   if (statusFilter) { list = list.filter(function(c) { return c.status === statusFilter; }); }
+  if (fromFilter) { list = list.filter(function(c) { return c.signDate >= fromFilter; }); }
+  if (toFilter) { list = list.filter(function(c) { return c.signDate <= toFilter; }); }
 
   var rows = list.map(function(c) {
     var btns = '';
@@ -1129,10 +1170,16 @@ function pageContract() {
 
   return '<div class="card">' +
     '<div class="card-title">合同列表</div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
-      '<div style="display:flex;gap:8px">' +
-        '<input type="text" id="contractKw" placeholder="搜索合同编号/名称/客户..." style="width:220px;padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" value="' + (kw || '') + '" oninput="navTo(\'contract\')">' +
-        '<select id="contractStatus" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" onchange="navTo(\'contract\')"><option value="">全部状态</option><option value="草稿"' + (statusFilter==='草稿'?' selected':'') + '>草稿</option><option value="进行中"' + (statusFilter==='进行中'?' selected':'') + '>进行中</option><option value="已完成"' + (statusFilter==='已完成'?' selected':'') + '>已完成</option><option value="已终止"' + (statusFilter==='已终止'?' selected':'') + '>已终止</option></select>' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<input placeholder="合同编号" id="ct_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px" value="' + (idFilter || '') + '">' +
+        '<input placeholder="合同名称" id="ct_filter_name" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px" value="' + (nameFilter || '') + '">' +
+        '<input placeholder="客户名称" id="ct_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px" value="' + (clientFilter || '') + '">' +
+        '<select id="ct_filter_status" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部状态</option><option value="草稿"' + (statusFilter==='草稿'?' selected':'') + '>草稿</option><option value="进行中"' + (statusFilter==='进行中'?' selected':'') + '>进行中</option><option value="已完成"' + (statusFilter==='已完成'?' selected':'') + '>已完成</option><option value="已终止"' + (statusFilter==='已终止'?' selected':'') + '>已终止</option></select>' +
+        '<input type="date" id="ct_filter_from" style="padding:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:130px" value="' + (fromFilter || '') + '" title="签订日期从">' +
+        '<span style="color:#999">-</span>' +
+        '<input type="date" id="ct_filter_to" style="padding:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:130px" value="' + (toFilter || '') + '" title="签订日期至">' +
+        '<button class="btn btn-primary" onclick="navTo(\'contract\')" style="padding:6px 14px">🔍 查询</button>' +
       '</div>' +
       '<button class="btn btn-primary" onclick="showContractCreate()">+ 新建合同</button>' +
     '</div>' +
