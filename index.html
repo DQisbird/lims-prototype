@@ -51,6 +51,15 @@ tr:hover{background:#fafafa}
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:1000;justify-content:center;align-items:center}
 .modal-overlay.show{display:flex}
 .modal{background:#fff;border-radius:8px;width:700px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.modal-wide{width:960px}
+.ws-layout{display:flex;min-height:420px;max-height:60vh}
+.ws-left{width:330px;flex-shrink:0;border-right:1px solid #e8e8e8;overflow-y:auto;padding:12px 16px;background:#fafafa}
+.ws-right{flex:1;overflow-y:auto;padding:16px}
+.ws-info-table{width:100%;font-size:12px;border-collapse:collapse}
+.ws-info-table td{padding:4px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-height:1.5}
+.ws-info-table td:first-child{width:78px;color:#999;white-space:nowrap;text-align:right;padding-right:8px;font-size:11px}
+.ws-info-table .ws-section{background:#e6f7ff;color:#1890ff;font-weight:bold;font-size:12px;padding:6px 8px}
+.ws-right-title{font-weight:bold;font-size:14px;color:#1890ff;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1890ff}
 .modal-header{padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:bold}
 .modal-close{cursor:pointer;font-size:20px;color:#999;background:none;border:none}
 .modal-body{flex:1;overflow-y:auto;padding:20px}
@@ -624,86 +633,87 @@ var ITEM_LABELS = {
 };
 var ITEM_KEYS = ['staff', 'device', 'env', 'delivery', 'sample', 'outsource', 'risk', 'scope'];
 
-function reviewDetailHtml(r) {
-  // 复用 viewReview 的基本信息展示样式
-  return makeForm([
-    { l: '评审编号', h: '<input value="' + r.id + '" readonly>' },
-    { l: '项目名称', h: '<input value="' + r.proj + '" readonly>' },
-    { l: '客户名称', h: '<input value="' + r.client + '" readonly>' },
-    { l: '联系人', h: '<input value="' + r.contact + '" readonly>' },
-    { l: '联系方式', h: '<input value="' + r.phone + '" readonly>' },
-    { l: '合同类型', h: '<input value="' + r.ctype + '" readonly>' },
-    { l: '拟检测领域', h: '<input value="' + r.domains.join(',') + '" readonly>' },
-    { l: '检测内容', h: '<textarea readonly rows="2">' + r.testContent + '</textarea>' },
-    { l: '检测标准依据', h: '<input value="' + r.standardBasis + '" readonly>' },
-    { l: '合同金额', h: '<input value="¥' + (r.contractAmount || 0).toLocaleString() + '" readonly>' },
-    { l: '交付期', h: '<input value="' + (r.deliveryDate || '-') + '" readonly>' },
-    { l: '交付方式', h: '<input value="' + (r.deliveryMethod || '-') + '" readonly>' },
-    { l: '是否使用标识', h: '<input value="' + (r.useLogo || '否') + '" readonly>' },
-    { l: '其他要求', h: '<textarea readonly rows="2">' + (r.otherRequirements || '') + '</textarea>' },
-    { l: '评审结论', h: '<input value="' + r.conclusion + '" readonly>' },
-    { l: '评审日期', h: '<input value="' + r.date + '" readonly>' },
-    { l: '发起人', h: '<input value="' + r.initiator + '" readonly>' }
-  ]);
+function reviewDetailTable(r) {
+  return '<table class="ws-info-table">' +
+    '<tr><td colspan="2" class="ws-section">基本信息</td></tr>' +
+    '<tr><td>评审编号</td><td>' + r.id + '</td></tr>' +
+    '<tr><td>项目名称</td><td>' + r.proj + '</td></tr>' +
+    '<tr><td>客户名称</td><td>' + r.client + '</td></tr>' +
+    '<tr><td>联系人</td><td>' + r.contact + '</td></tr>' +
+    '<tr><td>联系方式</td><td>' + r.phone + '</td></tr>' +
+    '<tr><td>合同类型</td><td>' + r.ctype + '</td></tr>' +
+    '<tr><td>检测领域</td><td>' + r.domains.join('、') + '</td></tr>' +
+    '<tr><td colspan="2" class="ws-section">检测详情</td></tr>' +
+    '<tr><td>检测内容</td><td>' + r.testContent + '</td></tr>' +
+    '<tr><td>标准依据</td><td>' + r.standardBasis + '</td></tr>' +
+    '<tr><td>合同金额</td><td>¥' + (r.contractAmount || 0).toLocaleString() + '</td></tr>' +
+    '<tr><td>交付期</td><td>' + (r.deliveryDate || '-') + '</td></tr>' +
+    '<tr><td>交付方式</td><td>' + (r.deliveryMethod || '-') + '</td></tr>' +
+    '<tr><td>使用标识</td><td>' + (r.useLogo || '否') + '</td></tr>' +
+    '<tr><td>其他要求</td><td>' + (r.otherRequirements || '无') + '</td></tr>' +
+    '<tr><td colspan="2" class="ws-section">评审状态</td></tr>' +
+    '<tr><td>评审结论</td><td>' + statusTag(r.conclusion) + '</td></tr>' +
+    '<tr><td>评审日期</td><td>' + r.date + '</td></tr>' +
+    '<tr><td>发起人</td><td>' + r.initiator + '</td></tr>' +
+    '</table>';
 }
 
 function viewReviewWorksheet(id) {
   var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
   if (!r) return;
+  document.querySelector('.modal').classList.add('modal-wide');
 
-  var detailHtml = reviewDetailHtml(r);
-  var divider = '<div style="border-top:2px solid #1890ff;margin:16px 0;padding-top:12px;font-weight:bold;color:#1890ff;font-size:14px">▼ 评审明细</div>';
+  var leftHtml = '<div class="ws-left">' + reviewDetailTable(r) + '</div>';
+  var rightHtml;
 
   if (r.status === 'done') {
-    // 已完成：基本信息 + 各评审人结果
     var tables = r.reviewers.map(function(rv) {
       var rows = ITEM_KEYS.map(function(k) {
         return '<tr><td>' + ITEM_LABELS[k] + '</td><td>' + (rv.items[k] || '-') + '</td></tr>';
       }).join('');
-      return '<div style="margin-bottom:16px;border:1px solid #f0f0f0;border-radius:6px;overflow:hidden">' +
-        '<div style="padding:8px 12px;background:#fafafa;font-weight:bold">' + rv.name + '（' + rv.role + '）— 结论：' + statusTag(rv.result || '未填写') +
-        (rv.comment ? ' <span style="color:#999;font-weight:normal;font-size:12px">备注：' + rv.comment + '</span>' : '') + '</div>' +
+      return '<div style="margin-bottom:12px;border:1px solid #f0f0f0;border-radius:6px;overflow:hidden">' +
+        '<div style="padding:6px 10px;background:#fafafa;font-weight:bold;font-size:13px">' + rv.name + '（' + rv.role + '）— ' + statusTag(rv.result || '未填写') +
+        (rv.comment ? ' <span style="color:#999;font-weight:normal;font-size:11px">' + rv.comment + '</span>' : '') + '</div>' +
         '<table class="review-items-table">' + rows + '</table></div>';
     }).join('');
-    showModal('评审工单 - ' + r.id, '<div style="max-height:55vh;overflow-y:auto">' + detailHtml + divider + tables + '</div>');
+    rightHtml = '<div class="ws-right"><div class="ws-right-title">评审明细（已完成）</div>' + tables + '</div>';
   } else {
-    // 评审中：基本信息 + 评审人填写状态
     var rows = r.reviewers.map(function(rv, i) {
       var filled = rv.result ? true : false;
       return '<tr><td>' + rv.name + '</td><td>' + rv.role + '</td>' +
         '<td>' + (filled ? statusTag(rv.result) : '<span style="color:#999">未填写</span>') + '</td>' +
         '<td><button class="btn btn-primary btn-sm" onclick="fillReviewWorksheet(\'' + id + '\',' + i + ')">' + (filled ? '修改' : '填写') + '</button></td></tr>';
     }).join('');
-
-    var html = detailHtml + divider +
+    rightHtml = '<div class="ws-right"><div class="ws-right-title">评审人员填写进度</div>' +
       '<table><thead><tr><th>评审人</th><th>角色</th><th>结论</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-      '<div style="margin-top:16px;text-align:center">' +
-        '<button class="btn btn-warning" onclick="finalizeReview(\'' + id + '\')">汇总评审结论</button>' +
+      '<div style="margin-top:16px;text-align:center"><button class="btn btn-warning" onclick="finalizeReview(\'' + id + '\')">汇总评审结论</button></div>' +
       '</div>';
-
-    showModal('评审工单 - ' + r.id, '<div style="max-height:55vh;overflow-y:auto">' + html + '</div>');
   }
+
+  showModal('评审工单 - ' + r.id, '<div class="ws-layout">' + leftHtml + rightHtml + '</div>');
+  // 移除 modal-wide，避免影响其他弹窗
+  setTimeout(function() { document.querySelector('.modal').classList.remove('modal-wide'); }, 100);
 }
 
 function fillReviewWorksheet(id, idx) {
   var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
   var rv = r.reviewers[idx];
-
-  var detailHtml = reviewDetailHtml(r);
-  var divider = '<div style="border-top:2px solid #1890ff;margin:16px 0;padding-top:12px;font-weight:bold;color:#1890ff;font-size:14px">▼ 填写评审意见 — ' + rv.name + '（' + rv.role + '）</div>';
+  document.querySelector('.modal').classList.add('modal-wide');
 
   var itemFields = ITEM_KEYS.map(function(k) {
     return { l: ITEM_LABELS[k], r: 1, h: makeSelect('rwi_' + k, ['是', '否'], rv.items[k] || '') };
   });
 
-  var body = '<div style="max-height:55vh;overflow-y:auto">' + detailHtml + divider +
-    makeForm(itemFields.concat([
-      { l: '评审结论', r: 1, h: makeSelect('rwi_conclusion', ['通过', '不通过'], rv.result || '') },
-      { l: '不通过原因', h: '<textarea id="rwi_comment" rows="2" placeholder="不通过时请填写原因">' + (rv.comment || '') + '</textarea>' }
-    ])) + '</div>';
+  var leftHtml = '<div class="ws-left">' + reviewDetailTable(r) + '</div>';
+  var formHtml = makeForm(itemFields.concat([
+    { l: '评审结论', r: 1, h: makeSelect('rwi_conclusion', ['通过', '不通过'], rv.result || '') },
+    { l: '不通过原因', h: '<textarea id="rwi_comment" rows="2" placeholder="不通过时请填写原因">' + (rv.comment || '') + '</textarea>' }
+  ]));
+  var rightHtml = '<div class="ws-right"><div class="ws-right-title">填写评审 — ' + rv.name + '（' + rv.role + '）</div>' + formHtml + '</div>';
 
   var footer = '<button class="btn btn-primary" onclick="submitReviewItem(\'' + id + '\',' + idx + ')">保存</button>';
-  showModal('填写评审工单 — ' + rv.name, body, footer);
+  showModal('填写评审工单 — ' + rv.name, '<div class="ws-layout">' + leftHtml + rightHtml + '</div>', footer);
+  setTimeout(function() { document.querySelector('.modal').classList.remove('modal-wide'); }, 100);
 }
 
 function submitReviewItem(id, idx) {
