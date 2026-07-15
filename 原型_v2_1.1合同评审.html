@@ -21,6 +21,7 @@ body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;c
 .nav-child{padding:8px 20px 8px 36px;font-size:12px;cursor:pointer;transition:background .2s}
 .nav-child:hover{background:#002140}
 .nav-child.active{background:#1890ff;color:#fff}
+.nav-badge{float:right;background:#ff4d4f;color:#fff;font-size:11px;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;margin-top:1px}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .header{height:48px;background:#fff;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;padding:0 20px;font-size:14px;justify-content:space-between}
 .header .user{font-size:13px;color:#666}
@@ -169,11 +170,32 @@ var REVIEWS = [
 // ============================================================
 // 导航
 // ============================================================
-var curPage = 'review';
+var curPage = 'todo';
+
+// 当前登录用户（原型硬编码）
+var LOGIN_USER = '张工';
+
+// 计算待办数量
+function pendingCount() {
+  var count = 0;
+  // 合同评审：status=pending 且 当前用户是评审人且未填写
+  REVIEWS.forEach(function(r) {
+    if (r.status === 'pending') {
+      r.reviewers.forEach(function(rv) {
+        if (rv.name === LOGIN_USER && !rv.result) count++;
+      });
+    }
+  });
+  return count;
+}
 
 function renderNav() {
   var nav = document.getElementById('nav');
+  var todoCount = pendingCount();
   var items = [
+    { label: '待办工单', badge: todoCount, children: [
+      { id: 'todo', label: '全部待办' }
+    ]},
     { label: '委托管理', children: [
       { id: 'review', label: '合同评审' },
       { id: 'contract', label: '合同签订' },
@@ -196,7 +218,8 @@ function renderNav() {
   var h = '';
   items.forEach(function(g) {
     var open = g.children.some(function(c) { return c.id === curPage; });
-    h += '<div class="nav-parent' + (open ? ' open' : '') + '" onclick="this.classList.toggle(\'open\')">' + g.label + '<span class="arrow">&#9654;</span></div>';
+    var badgeHtml = g.badge > 0 ? '<span class="nav-badge">' + g.badge + '</span>' : '';
+    h += '<div class="nav-parent' + (open ? ' open' : '') + '" onclick="this.classList.toggle(\'open\')">' + g.label + badgeHtml + '<span class="arrow">&#9654;</span></div>';
     h += '<div class="nav-children">';
     g.children.forEach(function(c) {
       h += '<div class="nav-child' + (c.id === curPage ? ' active' : '') + '" onclick="navTo(\'' + c.id + '\')">' + c.label + '</div>';
@@ -207,6 +230,7 @@ function renderNav() {
 }
 
 var TITLES = {
+  todo: '待办工单',
   review: '合同评审', contract: '合同签订', commission: '委托创建', approval: '委托审批',
   task: '任务列表', filemgmt: '文件配置管理', supervision: '过程质量监督',
   sample: '样品列表', standards: '标准库', device: '设备台账', personnel: '人员档案',
@@ -337,12 +361,71 @@ function renderPage() {
   var c = document.getElementById('content');
   switch (curPage) {
     case 'review': c.innerHTML = pageReview(); break;
+    case 'todo': c.innerHTML = pageTodo(); break;
     default: c.innerHTML = pagePlaceholder(TITLES[curPage] || curPage); break;
   }
 }
 
 function pagePlaceholder(title) {
   return '<div class="placeholder-card"><div class="ph-icon">&#128736;</div><div class="ph-text">' + title + ' 模块 — 待开发</div><div style="color:#bbb;font-size:12px;margin-top:8px">将在后续迭代中逐一实现</div></div>';
+}
+
+// ============================================================
+// 待办工单
+// ============================================================
+function pageTodo() {
+  // 收集所有待办
+  var todos = [];
+  REVIEWS.forEach(function(r) {
+    if (r.status === 'pending') {
+      r.reviewers.forEach(function(rv) {
+        if (rv.name === LOGIN_USER && !rv.result) {
+          todos.push({ type: '合同评审', refId: r.id, project: r.proj, client: r.client, date: r.date, reviewer: rv.name, target: 'review' });
+        }
+      });
+    }
+  });
+
+  // 按类型分组
+  var groups = {};
+  todos.forEach(function(t) {
+    if (!groups[t.type]) groups[t.type] = [];
+    groups[t.type].push(t);
+  });
+
+  var groupKeys = Object.keys(groups);
+  if (groupKeys.length === 0) {
+    return '<div class="card"><div class="card-title">待办工单</div><div style="text-align:center;padding:40px;color:#999;font-size:15px">&#127881; 暂无待办工单</div></div>';
+  }
+
+  var html = '';
+  groupKeys.forEach(function(gk) {
+    var items = groups[gk];
+    var rows = items.map(function(t) {
+      return '<tr>' +
+        '<td>' + gk + '</td>' +
+        '<td>' + t.project + '</td>' +
+        '<td>' + t.client + '</td>' +
+        '<td>' + t.date + '</td>' +
+        '<td>' + t.refId + '</td>' +
+        '<td><button class="btn btn-primary btn-sm" onclick="navTo(\'' + t.target + '\')">处理</button></td>' +
+        '</tr>';
+    }).join('');
+
+    html += '<div class="card" style="margin-bottom:12px">' +
+      '<div class="card-title" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>' + gk + '</span>' +
+        '<span class="tag tag-orange">' + items.length + ' 条待处理</span>' +
+      '</div>' +
+      '<table><thead><tr>' +
+        '<th>工单类型</th><th>项目名称</th><th>客户名称</th><th>分配日期</th><th>编号</th><th>操作</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>' +
+      '</div>';
+  });
+
+  return '<div class="card"><div class="card-title">待办工单</div>' +
+    '<div style="color:#666;font-size:13px;margin-bottom:8px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）</div>' +
+    '</div>' + html;
 }
 
 // ============================================================
@@ -615,6 +698,7 @@ function submitReviewItem(id, idx) {
 
   closeModal();
   viewReviewWorksheet(id);
+  renderNav();
   alert(rv.name + ' 评审工单已保存');
 }
 
