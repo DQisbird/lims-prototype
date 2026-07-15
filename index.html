@@ -258,7 +258,7 @@ function navTo(id) {
 // 工具函数
 // ============================================================
 function statusTag(s) {
-  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '待处理': 'orange', '已处理': 'green' };
+  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green' };
   return '<span class="tag tag-' + (m[s] || 'blue') + '">' + s + '</span>';
 }
 
@@ -468,8 +468,17 @@ function filterTable(keyword, tableId) {
 // ============================================================
 function pageReview() {
   var rows = REVIEWS.map(function(r) {
-    var btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
-    if (r.status === 'done') btns += ' <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
+    var btns = '';
+    if (r.status === 'draft') {
+      btns = '<button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button>' +
+        ' <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
+    } else if (r.status === 'pending') {
+      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
+    } else if (r.status === 'done') {
+      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>' +
+        ' <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
+      if (r.conclusion === '不通过') btns += ' <button class="btn btn-warning btn-sm" onclick="refireReview(\'' + r.id + '\')">重新发起</button>';
+    }
     return '<tr>' +
       '<td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
       '<td>' + r.proj + '</td>' +
@@ -489,7 +498,7 @@ function pageReview() {
       '<input placeholder="评审编号" id="rf_filter_id">' +
       '<input placeholder="项目名称" id="rf_filter_proj">' +
       '<input placeholder="客户名称" id="rf_filter_client">' +
-      '<select id="rf_filter_conclusion"><option value="">全部结论</option><option>通过</option><option>不通过</option><option>评审中</option></select>' +
+      '<select id="rf_filter_conclusion"><option value="">全部结论</option><option>未提交</option><option>评审中</option><option>通过</option><option>不通过</option></select>' +
       '<input type="date" id="rf_filter_from">-<input type="date" id="rf_filter_to">' +
       '<button class="btn btn-primary" onclick="filterReviews()">&#128269; 查询</button>' +
       '<button class="btn btn-success" onclick="showReviewForm()">发起评审</button>' +
@@ -512,8 +521,17 @@ function filterReviews() {
     if (conclusion && r.conclusion !== conclusion) return false;
     return true;
   }).map(function(r) {
-    var btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
-    if (r.status === 'done') btns += ' <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
+    var btns = '';
+    if (r.status === 'draft') {
+      btns = '<button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button>' +
+        ' <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
+    } else if (r.status === 'pending') {
+      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
+    } else if (r.status === 'done') {
+      btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>' +
+        ' <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
+      if (r.conclusion === '不通过') btns += ' <button class="btn btn-warning btn-sm" onclick="refireReview(\'' + r.id + '\')">重新发起</button>';
+    }
     return '<tr>' +
       '<td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
       '<td>' + r.proj + '</td><td>' + r.client + '</td><td>' + r.ctype + '</td>' +
@@ -526,7 +544,7 @@ function filterReviews() {
       '<input placeholder="评审编号" id="rf_filter_id" value="' + (document.getElementById('rf_filter_id') ? document.getElementById('rf_filter_id').value : '') + '">' +
       '<input placeholder="项目名称" id="rf_filter_proj">' +
       '<input placeholder="客户名称" id="rf_filter_client">' +
-      '<select id="rf_filter_conclusion"><option value="">全部</option><option>通过</option><option>不通过</option><option>评审中</option></select>' +
+      '<select id="rf_filter_conclusion"><option value="">全部</option><option>未提交</option><option>评审中</option><option>通过</option><option>不通过</option></select>' +
       '<input type="date">-<input type="date">' +
       '<button class="btn btn-primary" onclick="filterReviews()">&#128269; 查询</button>' +
       '<button class="btn btn-success" onclick="showReviewForm()">发起评审</button>' +
@@ -535,42 +553,55 @@ function filterReviews() {
 }
 
 // ============================================================
-// 1.1 合同评审 - 弹窗①：发起合同评审
+// 1.1 合同评审 - 弹窗①：发起/编辑合同评审
 // ============================================================
-function showReviewForm() {
+function showReviewForm(editId) {
+  var editR = null;
+  if (editId) { editR = REVIEWS.filter(function(x) { return x.id === editId; })[0]; }
   var dOpts = {};
   DOMAINS.forEach(function(d) { dOpts[d] = DOMAIN_LABELS[d] + ' (' + d + ')'; });
   var pOpts = {};
   PERSONNEL.forEach(function(p) { pOpts[p.name + ' (' + p.role + ')'] = p.name + ' (' + p.role + ')'; });
 
-  var dTags = multiSelectHtml('rf_domains', [], dOpts, '点击选择检测领域');
-  var pTags = multiSelectHtml('rf_reviewers', [], pOpts, '点击选择评审人员');
+  // 生成默认编号（当天去重）
+  var today = fmt(NOW);
+  var baseId = 'TZJC/JSJL-HTPS' + today;
+  var sameDay = REVIEWS.filter(function(r) { return r.id.indexOf(baseId) === 0; });
+  var defaultId = sameDay.length === 0 ? baseId : baseId + '-' + (sameDay.length + 1);
 
-  var defaultId = 'TZJC/JSJL-HTPS' + fmt(NOW);
+  // 编辑时使用已有数据
+  var init = editR || {};
+  var selDomains = init.domains || [];
+  var selReviewers = (init.reviewers || []).map(function(rv) { return rv.name + ' (' + rv.role + ')'; });
+
+  var dTags = multiSelectHtml('rf_domains', selDomains, dOpts, '点击选择检测领域');
+  var pTags = multiSelectHtml('rf_reviewers', selReviewers, pOpts, '点击选择评审人员');
 
   var body = makeForm([
-    { l: '评审编号', r: 1, h: '<input id="rf_id" value="' + defaultId + '" placeholder="TZJC/JSJL-{类型}{日期}">' },
-    { l: '项目名称', r: 1, h: '<input id="rf_proj" placeholder="请输入项目名称">' },
-    { l: '客户名称', r: 1, h: '<input id="rf_client" placeholder="请输入客户名称">' },
-    { l: '联系人', r: 1, h: '<input id="rf_contact" placeholder="请输入联系人">' },
-    { l: '联系方式', r: 1, h: '<input id="rf_phone" placeholder="请输入联系方式">' },
-    { l: '合同类型', r: 1, h: makeSelect('rf_ctype', ['框架合同', '年度合同', '单次合同']) },
-    { l: '检测内容', r: 1, h: '<textarea id="rf_content" rows="3" placeholder="请输入检测内容描述"></textarea>' },
-    { l: '检测标准依据', r: 1, h: '<input id="rf_standard" placeholder="如：GB/T 25000.51-2016">' },
-    { l: '合同金额', h: '<input id="rf_amount" type="number" placeholder="单位：元">' },
-    { l: '交付期', h: '<input id="rf_deliveryDate" type="date">' },
-    { l: '交付方式', h: '<input id="rf_deliveryMethod" placeholder="如：电子版报告+纸质盖章版">' },
-    { l: '是否使用标识', r: 1, h: makeSelect('rf_useLogo', ['否', '是']) },
-    { l: '其他要求说明', h: '<textarea id="rf_other" rows="2" placeholder="如有特殊要求请说明"></textarea>' },
-    { l: '拟检测领域', r: 1, h: '<input type="hidden" id="rf_domains" data-sel="[]" data-opts=\'' + JSON.stringify(dOpts) + '\'>' + dTags },
-    { l: '评审人员', r: 1, h: '<input type="hidden" id="rf_reviewers" data-sel="[]" data-opts=\'' + JSON.stringify(pOpts) + '\'>' + pTags }
+    { l: '评审编号', r: 1, h: '<input id="rf_id" value="' + (editR ? editR.id : defaultId) + '" placeholder="TZJC/JSJL-{类型}{日期}"' + (editR ? '' : '') + '>' },
+    { l: '项目名称', r: 1, h: '<input id="rf_proj" value="' + (init.proj || '') + '" placeholder="请输入项目名称">' },
+    { l: '客户名称', r: 1, h: '<input id="rf_client" value="' + (init.client || '') + '" placeholder="请输入客户名称">' },
+    { l: '联系人', r: 1, h: '<input id="rf_contact" value="' + (init.contact || '') + '" placeholder="请输入联系人">' },
+    { l: '联系方式', r: 1, h: '<input id="rf_phone" value="' + (init.phone || '') + '" placeholder="请输入联系方式">' },
+    { l: '合同类型', r: 1, h: makeSelect('rf_ctype', ['框架合同', '年度合同', '单次合同'], init.ctype || '') },
+    { l: '检测内容', r: 1, h: '<textarea id="rf_content" rows="3" placeholder="请输入检测内容描述">' + (init.testContent || '') + '</textarea>' },
+    { l: '检测标准依据', r: 1, h: '<input id="rf_standard" value="' + (init.standardBasis || '') + '" placeholder="如：GB/T 25000.51-2016">' },
+    { l: '合同金额', h: '<input id="rf_amount" type="number" value="' + (init.contractAmount || '') + '" placeholder="单位：元">' },
+    { l: '交付期', h: '<input id="rf_deliveryDate" type="date" value="' + (init.deliveryDate || '') + '">' },
+    { l: '交付方式', h: '<input id="rf_deliveryMethod" value="' + (init.deliveryMethod || '') + '" placeholder="如：电子版报告+纸质盖章版">' },
+    { l: '是否使用标识', r: 1, h: makeSelect('rf_useLogo', ['否', '是'], init.useLogo || '') },
+    { l: '其他要求说明', h: '<textarea id="rf_other" rows="2" placeholder="如有特殊要求请说明">' + (init.otherRequirements || '') + '</textarea>' },
+    { l: '拟检测领域', r: 1, h: '<input type="hidden" id="rf_domains" data-sel=\'' + JSON.stringify(selDomains) + '\' data-opts=\'' + JSON.stringify(dOpts) + '\'>' + dTags },
+    { l: '评审人员', r: 1, h: '<input type="hidden" id="rf_reviewers" data-sel=\'' + JSON.stringify(selReviewers) + '\' data-opts=\'' + JSON.stringify(pOpts) + '\'>' + pTags }
   ]);
   body += '<div style="color:#999;font-size:12px;margin-top:8px">&#9888; 评审人员必须包含<b>质量负责人</b>和<b>部门负责人</b></div>';
 
-  showModal('发起合同评审', body, '<button class="btn btn-primary" onclick="submitNewReview()">提交评审</button>');
+  var footer = '<button class="btn btn-default" onclick="saveReviewDraft(\'' + (editId || '') + '\')">保存</button>' +
+    '<button class="btn btn-primary" onclick="submitNewReview(\'' + (editId || '') + '\')">提交评审</button>';
+  showModal(editR ? '编辑合同评审 - ' + editR.id : '发起合同评审', body, footer);
 }
 
-function submitNewReview() {
+function collectReviewForm() {
   var rid = (document.getElementById('rf_id').value || '').trim();
   var p = (document.getElementById('rf_proj').value || '').trim();
   var cl = (document.getElementById('rf_client').value || '').trim();
@@ -581,26 +612,11 @@ function submitNewReview() {
   var ctype = document.getElementById('rf_ctype').value;
   var domains = JSON.parse(document.getElementById('rf_domains').getAttribute('data-sel') || '[]');
   var reviewersRaw = JSON.parse(document.getElementById('rf_reviewers').getAttribute('data-sel') || '[]');
-
-  if (!rid) { alert('请输入评审编号'); return; }
-  if (!p || !cl || !ct || !ph || !content || !standard) { alert('请填写所有必填字段'); return; }
-  if (domains.length === 0) { alert('请选择至少一个检测领域'); return; }
-  if (reviewersRaw.length === 0) { alert('请选择评审人员'); return; }
-
-  // 编号重复校验
-  var dup = REVIEWS.filter(function(r) { return r.id === rid; });
-  if (dup.length > 0) { alert('评审编号已存在：' + rid + '，请修改'); return; }
-
-  var hasZL = reviewersRaw.some(function(r) { return r.indexOf('质量负责人') >= 0; });
-  var hasBM = reviewersRaw.some(function(r) { return r.indexOf('部门负责人') >= 0; });
-  if (!hasZL || !hasBM) { alert('评审人员必须包含质量负责人和部门负责人'); return; }
-
   var reviewers = reviewersRaw.map(function(r) {
     var m = r.match(/^(.+?) \((.+?)\)$/);
     return { name: m[1], role: m[2], result: '', items: {}, comment: '' };
   });
-
-  REVIEWS.push({
+  return {
     id: rid, proj: p, client: cl, contact: ct, phone: ph, ctype: ctype,
     testContent: content, standardBasis: standard,
     contractAmount: parseFloat(document.getElementById('rf_amount').value) || 0,
@@ -608,13 +624,70 @@ function submitNewReview() {
     deliveryMethod: document.getElementById('rf_deliveryMethod').value,
     useLogo: document.getElementById('rf_useLogo').value,
     otherRequirements: document.getElementById('rf_other').value,
-    domains: domains, reviewers: reviewers,
-    conclusion: '评审中', date: fmt(NOW), initiator: '张工', status: 'pending'
-  });
+    domains: domains, reviewers: reviewers
+  };
+}
 
-  closeModal();
-  navTo('review');
-  alert('评审已发起！编号：' + rid);
+// 保存草稿（状态=未提交）
+function saveReviewDraft(editId) {
+  var data = collectReviewForm();
+  if (!data.id) { alert('请输入评审编号'); return; }
+  if (!data.proj || !data.client) { alert('请至少填写项目名称和客户名称'); return; }
+
+  if (editId) {
+    // 编辑模式：更新已有记录
+    var idx = -1;
+    REVIEWS.forEach(function(r, i) { if (r.id === editId) idx = i; });
+    if (idx >= 0) {
+      data.conclusion = '未提交'; data.date = REVIEWS[idx].date; data.initiator = REVIEWS[idx].initiator; data.status = 'draft';
+      REVIEWS[idx] = data;
+    }
+    closeModal(); navTo('review');
+    alert('已保存（未提交）');
+  } else {
+    // 新增
+    var dup = REVIEWS.filter(function(r) { return r.id === data.id; });
+    if (dup.length > 0) { alert('评审编号已存在：' + data.id); return; }
+    data.conclusion = '未提交'; data.date = fmt(NOW); data.initiator = LOGIN_USER; data.status = 'draft';
+    REVIEWS.push(data);
+    closeModal(); navTo('review');
+    alert('已保存（未提交），编号：' + data.id);
+  }
+}
+
+// 提交评审（状态=评审中）
+function submitNewReview(editId) {
+  var data = collectReviewForm();
+  if (!data.id) { alert('请输入评审编号'); return; }
+  if (!data.proj || !data.client || !data.contact || !data.phone || !data.testContent || !data.standardBasis) { alert('请填写所有必填字段'); return; }
+  if (data.domains.length === 0) { alert('请选择至少一个检测领域'); return; }
+  if (data.reviewers.length === 0) { alert('请选择评审人员'); return; }
+
+  var hasZL = data.reviewers.some(function(rv) { return rv.role.indexOf('质量负责人') >= 0; });
+  var hasBM = data.reviewers.some(function(rv) { return rv.role.indexOf('部门负责人') >= 0; });
+  if (!hasZL || !hasBM) { alert('评审人员必须包含质量负责人和部门负责人'); return; }
+
+  if (editId) {
+    // 编辑模式：更新已有记录并提交
+    var idx = -1;
+    REVIEWS.forEach(function(r, i) { if (r.id === editId) idx = i; });
+    if (idx >= 0) {
+      data.conclusion = '评审中'; data.date = fmt(NOW); data.initiator = REVIEWS[idx].initiator; data.status = 'pending';
+      // 保留已填写的评审数据
+      data.reviewers = REVIEWS[idx].reviewers;
+      REVIEWS[idx] = data;
+    }
+    closeModal(); navTo('review');
+    alert('已提交评审！');
+  } else {
+    // 新增
+    var dup = REVIEWS.filter(function(r) { return r.id === data.id; });
+    if (dup.length > 0) { alert('评审编号已存在：' + data.id + '，请修改'); return; }
+    data.conclusion = '评审中'; data.date = fmt(NOW); data.initiator = LOGIN_USER; data.status = 'pending';
+    REVIEWS.push(data);
+    closeModal(); navTo('review');
+    alert('评审已发起！编号：' + data.id);
+  }
 }
 
 // ============================================================
@@ -817,6 +890,48 @@ function printReview(id) {
     '<\\/script></body></html>'
   );
   setTimeout(function() { w.print(); w.close(); }, 300);
+}
+
+// ============================================================
+// 删除评审（仅未提交状态）
+// ============================================================
+function deleteReview(id) {
+  var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
+  if (!r) return;
+  if (r.status !== 'draft') { alert('仅可删除未提交的评审单'); return; }
+  if (!confirm('确定删除评审单 ' + id + ' 吗？此操作不可恢复。')) return;
+  REVIEWS = REVIEWS.filter(function(x) { return x.id !== id; });
+  navTo('review');
+  alert('已删除：' + id);
+}
+
+// ============================================================
+// 重新发起评审（不通过后）
+// ============================================================
+function refireReview(id) {
+  var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
+  if (!r) return;
+  if (r.status !== 'done' || r.conclusion !== '不通过') { alert('仅可重新发起不通过的评审'); return; }
+  if (!confirm('确定基于 ' + id + ' 重新发起评审吗？将生成新评审编号。')) return;
+
+  // 生成新编号（当天去重）
+  var today = fmt(NOW);
+  var baseId = 'TZJC/JSJL-HTPS' + today;
+  var sameDay = REVIEWS.filter(function(x) { return x.id.indexOf(baseId) === 0; });
+  var newId = sameDay.length === 0 ? baseId : baseId + '-' + (sameDay.length + 1);
+
+  var newReview = {
+    id: newId, proj: r.proj, client: r.client, contact: r.contact, phone: r.phone, ctype: r.ctype,
+    testContent: r.testContent, standardBasis: r.standardBasis,
+    contractAmount: r.contractAmount, deliveryDate: r.deliveryDate,
+    deliveryMethod: r.deliveryMethod, useLogo: r.useLogo, otherRequirements: r.otherRequirements,
+    domains: r.domains.slice(),
+    reviewers: r.reviewers.map(function(rv) { return { name: rv.name, role: rv.role, result: '', items: {}, comment: '' }; }),
+    conclusion: '评审中', date: fmt(NOW), initiator: LOGIN_USER, status: 'pending'
+  };
+  REVIEWS.push(newReview);
+  navTo('review');
+  alert('已重新发起评审！新编号：' + newId);
 }
 
 // ============================================================
