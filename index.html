@@ -243,7 +243,7 @@ var CONTRACTS = [
     signDate: '2025-12-15',
     servicePeriod: '2025-12-15 至 2026-06-01',
     summary: '委托方委托检测方依据GB/T 25000.51-2016对智慧校园管理系统V3.0进行软件质量检测，检测方按合同约定时间出具检测报告。',
-    status: '生效中',
+    status: '进行中',
     delegateCount: 2
   },
   {
@@ -256,7 +256,7 @@ var CONTRACTS = [
     signDate: '2025-12-20',
     servicePeriod: '2025-12-20 至 2026-03-01',
     summary: '依据GB 4717-2005对消防报警控制器JB-QB进行安全检测，验证报警响应时间、误报率、环境适应性等指标。',
-    status: '生效中',
+    status: '进行中',
     delegateCount: 1
   },
   {
@@ -269,7 +269,7 @@ var CONTRACTS = [
     signDate: '2026-03-15',
     servicePeriod: '2026-03-15 至 2027-03-14',
     summary: '年度合同，对浙江省政务云平台进行定期渗透测试和安全评估，含漏洞扫描、渗透攻击、权限提升、数据泄露风险检测。需签署保密协议。',
-    status: '生效中',
+    status: '进行中',
     delegateCount: 3
   },
   {
@@ -300,7 +300,7 @@ var CONTRACTS = [
   }
 ];
 
-var CONTRACT_STATUS = { '草稿': 'default', '生效中': 'green', '已到期': 'orange', '已终止': 'red' };
+var CONTRACT_STATUS = { '草稿': 'default', '进行中': 'green', '已完成': 'blue', '已终止': 'red' };
 
 // ============================================================
 // 导航
@@ -385,7 +385,7 @@ function navTo(id) {
 // 工具函数
 // ============================================================
 function statusTag(s) {
-  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green' };
+  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green', '进行中': 'green', '已完成': 'blue', '已终止': 'red', '草稿': 'default' };
   return '<span class="tag tag-' + (m[s] || 'blue') + '">' + s + '</span>';
 }
 
@@ -1116,15 +1116,8 @@ function pageContract() {
     if (c.status === '草稿') {
       btns = '<button class="btn btn-primary btn-sm" onclick="editContract(\'' + c.id + '\')">编辑</button> ' +
              '<button class="btn btn-sm" style="background:#52c41a;color:#fff" onclick="signContract(\'' + c.id + '\')">签订生效</button>';
-    } else if (c.status === '生效中') {
-      btns = '<button class="btn btn-sm" style="background:#faad14;color:#fff" onclick="renewContract(\'' + c.id + '\')">续签</button> ' +
-             '<button class="btn btn-sm" style="background:#ff4d4f;color:#fff" onclick="terminateContract(\'' + c.id + '\')">终止</button> ' +
-             '<button class="btn btn-default btn-sm" onclick="viewDelegates(\'' + c.id + '\')">关联委托</button>';
-    } else if (c.status === '已到期') {
-      btns = '<button class="btn btn-sm" style="background:#faad14;color:#fff" onclick="renewContract(\'' + c.id + '\')">续签</button> ' +
-             '<button class="btn btn-default btn-sm" onclick="viewDelegates(\'' + c.id + '\')">关联委托</button>';
-    } else {
-      btns = '<button class="btn btn-default btn-sm" onclick="viewDelegates(\'' + c.id + '\')">关联委托</button>';
+    } else if (c.status === '进行中' || c.status === '已完成') {
+      btns = '<button class="btn btn-sm" style="background:#ff4d4f;color:#fff" onclick="terminateContract(\'' + c.id + '\')">终止</button>';
     }
     return '<tr>' +
       '<td>' + c.id + '</td><td>' + c.name + '</td><td>' + c.client + '</td>' +
@@ -1139,7 +1132,7 @@ function pageContract() {
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
       '<div style="display:flex;gap:8px">' +
         '<input type="text" id="contractKw" placeholder="搜索合同编号/名称/客户..." style="width:220px;padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" value="' + (kw || '') + '" oninput="navTo(\'contract\')">' +
-        '<select id="contractStatus" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" onchange="navTo(\'contract\')"><option value="">全部状态</option><option value="草稿"' + (statusFilter==='草稿'?' selected':'') + '>草稿</option><option value="生效中"' + (statusFilter==='生效中'?' selected':'') + '>生效中</option><option value="已到期"' + (statusFilter==='已到期'?' selected':'') + '>已到期</option><option value="已终止"' + (statusFilter==='已终止'?' selected':'') + '>已终止</option></select>' +
+        '<select id="contractStatus" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" onchange="navTo(\'contract\')"><option value="">全部状态</option><option value="草稿"' + (statusFilter==='草稿'?' selected':'') + '>草稿</option><option value="进行中"' + (statusFilter==='进行中'?' selected':'') + '>进行中</option><option value="已完成"' + (statusFilter==='已完成'?' selected':'') + '>已完成</option><option value="已终止"' + (statusFilter==='已终止'?' selected':'') + '>已终止</option></select>' +
       '</div>' +
       '<button class="btn btn-primary" onclick="showContractCreate()">+ 新建合同</button>' +
     '</div>' +
@@ -1158,10 +1151,13 @@ function showContractCreate() {
 
   var body = '<table class="ws-form-table">' +
     '<tr><td width="120">关联评审 <span style="color:red">*</span></td><td><select id="ctReview" style="width:100%;padding:6px" onchange="onCtReviewChange()"><option value="">-- 请选择已通过的评审 --</option>' + reviewOpts + '</select></td></tr>' +
-    '<tr><td>合同编号 <span style="color:red">*</span></td><td><input id="ctId" type="text" style="width:100%;padding:6px" placeholder="自动生成：TZJC-JCHT-YYYY-MM-DD"></td></tr>' +
+    '<tr><td>合同编号 <span style="color:red">*</span></td><td style="display:flex;align-items:center;gap:0">' +
+      '<span style="padding:6px 4px 6px 8px;background:#f5f5f5;border:1px solid #d9d9d9;border-right:0;border-radius:4px 0 0 4px;font-size:13px;white-space:nowrap">TZJC-JCHT-</span>' +
+      '<input id="ctIdTail" type="text" style="flex:1;padding:6px;border:1px solid #d9d9d9;border-radius:0 4px 4px 0;font-size:13px" placeholder="手填后缀，如 2026-07-20">' +
+    '</td></tr>' +
     '<tr><td>合同名称 <span style="color:red">*</span></td><td><input id="ctName" type="text" style="width:100%;padding:6px"></td></tr>' +
     '<tr><td>客户名称</td><td><input id="ctClient" type="text" style="width:100%;padding:6px;background:#f5f5f5" readonly></td></tr>' +
-    '<tr><td>合同金额</td><td><input id="ctAmount" type="number" style="width:100%;padding:6px" placeholder="元"></td></tr>' +
+    '<tr><td>合同金额（元）</td><td><input id="ctAmount" type="number" style="width:100%;padding:6px"></td></tr>' +
     '<tr><td>签订日期</td><td><input id="ctSignDate" type="date" style="width:100%;padding:6px"></td></tr>' +
     '<tr><td>服务期限</td><td><input id="ctPeriod" type="text" style="width:100%;padding:6px" placeholder="如：2026-07-20 至 2027-01-20"></td></tr>' +
     '<tr><td>合同条款摘要</td><td><textarea id="ctSummary" style="width:100%;padding:6px;height:80px" placeholder="合同主要条款摘要..."></textarea></td></tr>' +
@@ -1176,23 +1172,38 @@ function showContractCreate() {
 
 function onCtReviewChange() {
   var rid = document.getElementById('ctReview').value;
-  if (!rid) { document.getElementById('ctClient').value = ''; return; }
+  if (!rid) {
+    document.getElementById('ctClient').value = '';
+    document.getElementById('ctName').value = '';
+    document.getElementById('ctAmount').value = '';
+    document.getElementById('ctPeriod').value = '';
+    document.getElementById('ctSummary').value = '';
+    return;
+  }
   var r = REVIEWS.filter(function(x) { return x.id === rid; })[0];
-  if (r) { document.getElementById('ctClient').value = r.client; }
+  if (r) {
+    document.getElementById('ctClient').value = r.client;
+    document.getElementById('ctName').value = r.proj + '检测合同';
+    document.getElementById('ctAmount').value = r.contractAmount || '';
+    document.getElementById('ctPeriod').value = r.deliveryDate ? (r.signDate || '') + ' 至 ' + r.deliveryDate : '';
+    document.getElementById('ctSummary').value = r.testContent || '';
+    // 合同编号后缀自动建议：评审日期
+    if (r.date) { document.getElementById('ctIdTail').value = r.date; }
+  }
 }
 
 function saveContract() {
   var reviewId = document.getElementById('ctReview').value;
-  var id = document.getElementById('ctId').value.trim();
+  var tail = document.getElementById('ctIdTail').value.trim();
   var name = document.getElementById('ctName').value.trim();
   var client = document.getElementById('ctClient').value.trim();
   if (!reviewId) { alert('请选择关联评审'); return; }
-  if (!id) { var today = fmt(NOW); id = 'TZJC-JCHT-' + today; }
+  if (!tail) { alert('请输入合同编号后缀'); return; }
+  var id = 'TZJC-JCHT-' + tail;
   if (!name) { alert('请输入合同名称'); return; }
   if (!client) { alert('客户名称未获取到，请确认关联评审'); return; }
 
-  var existing = CONTRACTS.filter(function(c) { return c.id === id; });
-  if (existing.length > 0) { alert('合同编号 ' + id + ' 已存在，请修改'); return; }
+  if (CONTRACTS.some(function(c) { return c.id === id; })) { alert('合同编号 ' + id + ' 已存在，请修改后缀'); return; }
 
   var r = REVIEWS.filter(function(x) { return x.id === reviewId; })[0];
   CONTRACTS.push({
@@ -1217,13 +1228,17 @@ function editContract(cid) {
     var sel = r.id === c.reviewId ? ' selected' : '';
     return '<option value="' + r.id + '"' + sel + '>' + r.id + ' | ' + r.proj + ' | ' + r.client + '</option>';
   }).join('');
+  var tail = c.id.replace('TZJC-JCHT-', '');
 
   var body = '<table class="ws-form-table">' +
     '<tr><td width="120">关联评审 <span style="color:red">*</span></td><td><select id="ctReview" style="width:100%;padding:6px"><option value="">-- 请选择 --</option>' + reviewOpts + '</select></td></tr>' +
-    '<tr><td>合同编号 <span style="color:red">*</span></td><td><input id="ctId" type="text" style="width:100%;padding:6px" value="' + c.id + '" readonly></td></tr>' +
+    '<tr><td>合同编号 <span style="color:red">*</span></td><td style="display:flex;align-items:center;gap:0">' +
+      '<span style="padding:6px 4px 6px 8px;background:#f5f5f5;border:1px solid #d9d9d9;border-right:0;border-radius:4px 0 0 4px;font-size:13px;white-space:nowrap">TZJC-JCHT-</span>' +
+      '<input id="ctIdTail" type="text" style="flex:1;padding:6px;border:1px solid #d9d9d9;border-radius:0 4px 4px 0;font-size:13px" value="' + tail + '">' +
+    '</td></tr>' +
     '<tr><td>合同名称 <span style="color:red">*</span></td><td><input id="ctName" type="text" style="width:100%;padding:6px" value="' + c.name + '"></td></tr>' +
     '<tr><td>客户名称</td><td><input id="ctClient" type="text" style="width:100%;padding:6px;background:#f5f5f5" value="' + c.client + '" readonly></td></tr>' +
-    '<tr><td>合同金额</td><td><input id="ctAmount" type="number" style="width:100%;padding:6px" value="' + (c.amount || '') + '"></td></tr>' +
+    '<tr><td>合同金额（元）</td><td><input id="ctAmount" type="number" style="width:100%;padding:6px" value="' + (c.amount || '') + '"></td></tr>' +
     '<tr><td>签订日期</td><td><input id="ctSignDate" type="date" style="width:100%;padding:6px" value="' + (c.signDate || '') + '"></td></tr>' +
     '<tr><td>服务期限</td><td><input id="ctPeriod" type="text" style="width:100%;padding:6px" value="' + (c.servicePeriod || '') + '"></td></tr>' +
     '<tr><td>合同条款摘要</td><td><textarea id="ctSummary" style="width:100%;padding:6px;height:80px">' + (c.summary || '') + '</textarea></td></tr>' +
@@ -1238,6 +1253,11 @@ function editContract(cid) {
 function saveEditContract(cid) {
   var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
   if (!c) return;
+  var tail = document.getElementById('ctIdTail').value.trim();
+  if (!tail) { alert('请输入合同编号后缀'); return; }
+  var newId = 'TZJC-JCHT-' + tail;
+  if (newId !== cid && CONTRACTS.some(function(x) { return x.id === newId; })) { alert('合同编号 ' + newId + ' 已存在'); return; }
+  c.id = newId;
   c.name = document.getElementById('ctName').value.trim();
   c.amount = parseFloat(document.getElementById('ctAmount').value) || 0;
   c.signDate = document.getElementById('ctSignDate').value;
@@ -1254,43 +1274,20 @@ function signContract(cid) {
   if (c.status !== '草稿') { alert('仅可签订草稿状态的合同'); return; }
   if (!c.signDate) { alert('请先编辑合同并填写签订日期'); return; }
   if (!confirm('确定将合同 ' + c.id + ' 签订生效吗？')) return;
-  c.status = '生效中';
+  c.status = '进行中';
   navTo('contract');
-  alert('合同 ' + c.id + ' 已生效');
-}
-
-function renewContract(cid) {
-  var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
-  if (!c) return;
-  var newPeriod = prompt('请输入新的服务期限（如：2027-01-20 至 2028-01-20）：', c.servicePeriod);
-  if (!newPeriod) return;
-  c.servicePeriod = newPeriod;
-  c.status = '生效中';
-  navTo('contract');
-  alert('合同 ' + c.id + ' 已续签');
+  alert('合同 ' + c.id + ' 已生效，状态：进行中');
 }
 
 function terminateContract(cid) {
   var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
   if (!c) return;
+  if (c.status !== '进行中' && c.status !== '已完成') { alert('仅可终止进行中或已完成的合同'); return; }
   if (!confirm('确定终止合同 ' + c.id + ' 吗？终止后不可恢复。')) return;
   c.status = '已终止';
   navTo('contract');
   alert('合同 ' + c.id + ' 已终止');
 }
-
-function viewDelegates(cid) {
-  var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
-  if (!c) return;
-  if (c.delegateCount === 0) {
-    alert('合同 ' + cid + ' 暂无关联委托');
-  } else {
-    alert('合同 ' + cid + ' 关联委托数：' + c.delegateCount + '\n（1.3 委托创建模块开发后将支持跳转查看）');
-  }
-}
-
-// ============================================================
-// 初始化
 // ============================================================
 renderNav();
 renderPage();
