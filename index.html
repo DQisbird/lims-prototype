@@ -428,7 +428,10 @@ function showReviewForm() {
   var dTags = multiSelectHtml('rf_domains', [], dOpts, '点击选择检测领域');
   var pTags = multiSelectHtml('rf_reviewers', [], pOpts, '点击选择评审人员');
 
+  var defaultId = 'TZJC/JSJL-HTPS' + fmt(NOW);
+
   var body = makeForm([
+    { l: '评审编号', r: 1, h: '<input id="rf_id" value="' + defaultId + '" placeholder="TZJC/JSJL-{类型}{日期}">' },
     { l: '项目名称', r: 1, h: '<input id="rf_proj" placeholder="请输入项目名称">' },
     { l: '客户名称', r: 1, h: '<input id="rf_client" placeholder="请输入客户名称">' },
     { l: '联系人', r: 1, h: '<input id="rf_contact" placeholder="请输入联系人">' },
@@ -450,6 +453,7 @@ function showReviewForm() {
 }
 
 function submitNewReview() {
+  var rid = (document.getElementById('rf_id').value || '').trim();
   var p = (document.getElementById('rf_proj').value || '').trim();
   var cl = (document.getElementById('rf_client').value || '').trim();
   var ct = (document.getElementById('rf_contact').value || '').trim();
@@ -460,15 +464,19 @@ function submitNewReview() {
   var domains = JSON.parse(document.getElementById('rf_domains').getAttribute('data-sel') || '[]');
   var reviewersRaw = JSON.parse(document.getElementById('rf_reviewers').getAttribute('data-sel') || '[]');
 
+  if (!rid) { alert('请输入评审编号'); return; }
   if (!p || !cl || !ct || !ph || !content || !standard) { alert('请填写所有必填字段'); return; }
   if (domains.length === 0) { alert('请选择至少一个检测领域'); return; }
   if (reviewersRaw.length === 0) { alert('请选择评审人员'); return; }
+
+  // 编号重复校验
+  var dup = REVIEWS.filter(function(r) { return r.id === rid; });
+  if (dup.length > 0) { alert('评审编号已存在：' + rid + '，请修改'); return; }
 
   var hasZL = reviewersRaw.some(function(r) { return r.indexOf('质量负责人') >= 0; });
   var hasBM = reviewersRaw.some(function(r) { return r.indexOf('部门负责人') >= 0; });
   if (!hasZL || !hasBM) { alert('评审人员必须包含质量负责人和部门负责人'); return; }
 
-  var rid = 'TZJC/JSJL-HTPS' + fmt(NOW);
   var reviewers = reviewersRaw.map(function(r) {
     var m = r.match(/^(.+?) \((.+?)\)$/);
     return { name: m[1], role: m[2], result: '', items: {}, comment: '' };
