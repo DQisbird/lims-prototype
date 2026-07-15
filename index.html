@@ -385,65 +385,40 @@ function pagePlaceholder(title) {
 // 待办工单
 // ============================================================
 function pageTodo() {
-  // 收集所有待办
   var todos = [];
   REVIEWS.forEach(function(r) {
     if (r.status === 'pending') {
       r.reviewers.forEach(function(rv) {
         if (rv.name === LOGIN_USER && !rv.result) {
-          todos.push({ type: '合同评审', refId: r.id, project: r.proj, client: r.client, date: r.date, reviewer: rv.name, target: 'review' });
+          todos.push({ type: '合同评审', refId: r.id, project: r.proj, client: r.client, date: r.date, target: 'review' });
         }
       });
     }
   });
 
-  // 按类型分组
-  var groups = {};
-  todos.forEach(function(t) {
-    if (!groups[t.type]) groups[t.type] = [];
-    groups[t.type].push(t);
-  });
-
-  var groupKeys = Object.keys(groups);
-  if (groupKeys.length === 0) {
+  if (todos.length === 0) {
     return '<div class="card"><div class="card-title">待办工单</div><div style="text-align:center;padding:40px;color:#999;font-size:15px">&#127881; 暂无待办工单</div></div>';
   }
 
-  var html = '';
-  groupKeys.forEach(function(gk) {
-    var items = groups[gk];
-    var rows = items.map(function(t) {
-      return '<tr>' +
-        '<td>' + gk + '</td>' +
-        '<td>' + t.project + '</td>' +
-        '<td>' + t.client + '</td>' +
-        '<td>' + t.date + '</td>' +
-        '<td>' + t.refId + '</td>' +
-        '<td><button class="btn btn-primary btn-sm" onclick="navTo(\'' + t.target + '\')">处理</button></td>' +
-        '</tr>';
-    }).join('');
-
-    html += '<div class="card" style="margin-bottom:12px">' +
-      '<div class="card-title" style="display:flex;justify-content:space-between;align-items:center">' +
-        '<span>' + gk + '</span>' +
-        '<span class="tag tag-orange">' + items.length + ' 条待处理</span>' +
-      '</div>' +
-      '<table><thead><tr>' +
-        '<th>工单类型</th><th>项目名称</th><th>客户名称</th><th>分配日期</th><th>编号</th><th>操作</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table>' +
-      '</div>';
-  });
+  var rows = todos.map(function(t) {
+    return '<tr><td>' + t.type + '</td><td>' + t.project + '</td><td>' + t.client + '</td><td>' + t.date + '</td><td>' + t.refId + '</td>' +
+      '<td><button class="btn btn-primary btn-sm" onclick="navTo(\'' + t.target + '\')">处理</button></td></tr>';
+  }).join('');
 
   return '<div class="card"><div class="card-title">待办工单</div>' +
-    '<div style="color:#666;font-size:13px;margin-bottom:8px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）</div>' +
-    '</div>' + html;
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+      '<div style="color:#666;font-size:13px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）&nbsp;|&nbsp;共 <b>' + todos.length + '</b> 条</div>' +
+      '<input type="text" placeholder="搜索项目/客户/编号..." style="width:220px;padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" oninput="filterTable(this.value,\'todoTable\')">' +
+    '</div>' +
+    '<table id="todoTable"><thead><tr>' +
+      '<th>工单类型</th><th>项目名称</th><th>客户名称</th><th>分配日期</th><th>编号</th><th>操作</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
 // ============================================================
 // 已办工单
 // ============================================================
 function pageDone() {
-  // 收集当前用户参与过的已完成评审
   var doneList = [];
   REVIEWS.forEach(function(r) {
     if (r.status === 'done') {
@@ -454,7 +429,6 @@ function pageDone() {
     }
   });
 
-  // 按日期倒序
   doneList.sort(function(a, b) { return b.date.localeCompare(a.date); });
 
   if (doneList.length === 0) {
@@ -462,24 +436,33 @@ function pageDone() {
   }
 
   var rows = doneList.map(function(d) {
-    return '<tr>' +
-      '<td>' + d.type + '</td>' +
-      '<td>' + d.project + '</td>' +
-      '<td>' + d.client + '</td>' +
-      '<td>' + d.date + '</td>' +
-      '<td>' + d.id + '</td>' +
+    return '<tr><td>' + d.type + '</td><td>' + d.project + '</td><td>' + d.client + '</td><td>' + d.date + '</td><td>' + d.id + '</td>' +
       '<td>' + statusTag(d.conclusion) + '</td>' +
-      '<td><button class="btn btn-default btn-sm" onclick="viewReviewWorksheet(\'' + d.id + '\')">查看</button></td>' +
-      '</tr>';
+      '<td><button class="btn btn-default btn-sm" onclick="viewReviewWorksheet(\'' + d.id + '\')">查看</button></td></tr>';
   }).join('');
 
   return '<div class="card"><div class="card-title">已办工单</div>' +
-    '<div style="color:#666;font-size:13px;margin-bottom:8px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）&nbsp;&nbsp;|&nbsp;&nbsp;共 <b>' + doneList.length + '</b> 条</div>' +
-    '<table><thead><tr>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+      '<div style="color:#666;font-size:13px">当前登录：<b>' + LOGIN_USER + '</b>（质量负责人）&nbsp;|&nbsp;共 <b>' + doneList.length + '</b> 条</div>' +
+      '<input type="text" placeholder="搜索项目/客户/编号..." style="width:220px;padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px" oninput="filterTable(this.value,\'doneTable\')">' +
+    '</div>' +
+    '<table id="doneTable"><thead><tr>' +
       '<th>工单类型</th><th>项目名称</th><th>客户名称</th><th>日期</th><th>编号</th><th>评审结论</th><th>操作</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
+// ============================================================
+// 表格搜索过滤
+// ============================================================
+function filterTable(keyword, tableId) {
+  var tbody = document.querySelector('#' + tableId + ' tbody');
+  if (!tbody) return;
+  var rows = tbody.querySelectorAll('tr');
+  var kw = keyword.toLowerCase();
+  rows.forEach(function(row) {
+    row.style.display = kw ? (row.textContent.toLowerCase().indexOf(kw) >= 0 ? '' : 'none') : '';
+  });
+}
 // ============================================================
 // 1.1 合同评审 - 列表页
 // ============================================================
