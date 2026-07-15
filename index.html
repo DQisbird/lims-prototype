@@ -532,7 +532,7 @@ function reviewTableRows(data) {
   return data.map(function(r) {
     return '<tr><td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
       '<td>' + r.proj + '</td><td>' + r.client + '</td><td>' + r.ctype + '</td>' +
-      '<td>' + r.domains.join(',') + '</td><td>' + statusTag(r.conclusion) + '</td>' +
+      '<td>' + r.domains.map(function(d) { return DOMAIN_LABELS[d] + '(' + d + ')'; }).join('、') + '</td><td>' + statusTag(r.conclusion) + '</td>' +
       '<td>' + r.date + '</td><td>' + r.initiator + '</td><td>' + reviewActionBtns(r) + '</td></tr>';
   }).join('');
 }
@@ -985,9 +985,4 @@ function refireReview(id) {
 
 // ============================================================
 // 初始化
-// ============================================================
-renderNav();
-renderPage();
-</script>
-</body>
-</html>
+// =================================================
