@@ -603,7 +603,7 @@ function pageTodo() {
 
   var rows = todos.map(function(t) {
     var btnHtml = t.action === 'approval'
-      ? '<button class="btn btn-primary btn-sm" onclick="fillApprovalWorkOrder(\'' + t.refId + '\')">处理</button>'
+      ? '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + t.refId + '\')">处理</button>'
       : '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + t.refId + '\')">处理</button>';
     return '<tr><td>' + t.type + '</td><td>' + t.project + '</td><td>' + t.client + '</td><td>' + t.date + '</td><td>' + t.refId + '</td>' +
       '<td>' + btnHtml + '</td></tr>';
@@ -1489,16 +1489,17 @@ function renderCommissionList() {
     var c = CONTRACTS.filter(function(x) { return x.id === d.contractId; })[0];
     var contractDisplay = c ? c.id : '独立委托';
     var ops = '';
+    var detailBtn = '<button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + d.id + '\')">查看详情</button>';
     if (d.status === '待审批') {
       ops = '<button class="btn btn-primary btn-sm" onclick="showCommissionForm(\'' + d.id + '\')">编辑</button> ' +
             '<button class="btn btn-success btn-sm" onclick="submitCommission(\'' + d.id + '\')">提交审批</button> ' +
-            '<button class="btn btn-danger btn-sm" onclick="deleteCommission(\'' + d.id + '\')">删除</button>';
+            '<button class="btn btn-danger btn-sm" onclick="deleteCommission(\'' + d.id + '\')">删除</button> ' + detailBtn;
     } else if (d.status === '审批中') {
-      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看审批进度</button>';
+      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看审批进度</button> ' + detailBtn;
     } else if (d.status === '已通过') {
-      ops = '<span style="color:#52c41a;font-size:12px">已通过</span>';
+      ops = '<span style="color:#52c41a;font-size:12px">✓已通过</span> ' + detailBtn;
     } else if (d.status === '已退回') {
-      ops = '<button class="btn btn-primary btn-sm" onclick="showCommissionForm(\'' + d.id + '\')">重新编辑</button>';
+      ops = '<button class="btn btn-primary btn-sm" onclick="showCommissionForm(\'' + d.id + '\')">重新编辑</button> ' + detailBtn;
     }
     return '<tr>' +
       '<td>' + d.id + '</td><td>' + d.client + '</td><td>' + contractDisplay + '</td>' +
@@ -1787,7 +1788,106 @@ function deleteCommission(id) {
 }
 
 // ============================================================
-// 1.3 委托审批 - 审批工单
+// 1.3 委托详情查看
+// ============================================================
+function viewCommissionDetail(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  if (!d) return;
+  var c = CONTRACTS.filter(function(x) { return x.id === d.contractId; })[0];
+
+  var rows = '<tr><td width="140"><b>委托编号</b></td><td>' + d.id + '</td></tr>' +
+    '<tr><td><b>关联合同</b></td><td>' + (c ? c.id + ' | ' + c.name : '独立委托（无关联合同）') + '</td></tr>' +
+    '<tr><td><b>委托方名称</b></td><td>' + d.client + '</td></tr>' +
+    '<tr><td><b>联系人</b></td><td>' + (d.contact || '-') + '</td></tr>' +
+    '<tr><td><b>联系方式</b></td><td>' + (d.phone || '-') + '</td></tr>' +
+    '<tr><td><b>委托方地址</b></td><td>' + (d.address || '-') + '</td></tr>' +
+    '<tr><td><b>检测对象名称及版本</b></td><td>' + d.objNameVer + '</td></tr>' +
+    '<tr><td><b>检测内容</b></td><td>' + (d.testContent || '-') + '</td></tr>' +
+    '<tr><td><b>检测领域</b></td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] + ' (' + dm + ')'; }).join('、') + '</td></tr>' +
+    '<tr><td><b>检测依据</b></td><td>' + (d.standards || '-') + '</td></tr>' +
+    '<tr><td><b>要求完成时间</b></td><td>' + (d.deadline || '-') + '</td></tr>' +
+    '<tr><td><b>特殊要求</b></td><td>' + (d.specialReq || '无') + '</td></tr>' +
+    '<tr><td><b>委托状态</b></td><td>' + statusTag(d.status) + '</td></tr>' +
+    '<tr><td><b>创建人</b></td><td>' + (d.creator || '-') + '</td></tr>' +
+    '<tr><td><b>创建日期</b></td><td>' + (d.createDate || '-') + '</td></tr>' +
+    '<tr><td><b>审批结论</b></td><td>' + (d.approvalConclusion ? statusTag(d.approvalConclusion) : '<span style="color:#999">-</span>') + '</td></tr>';
+
+  if (d.approvers && d.approvers.length > 0) {
+    var approverInfo = d.approvers.map(function(av) {
+      return av.name + '（' + av.role + '）：' + (av.result || '未填写');
+    }).join('<br>');
+    rows += '<tr><td><b>审批人</b></td><td>' + approverInfo + '</td></tr>';
+  }
+
+  showModal('委托详情 - ' + d.id,
+    '<table class="ws-form-table">' + rows + '</table>',
+    '<button class="btn btn-default" onclick="closeModal()">关闭</button>' +
+    (d.status === '审批中' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批进度</button>' : '')
+  );
+}
+
+// ============================================================
+// 1.3 委托审批 - 审批工单总览（先看进度再填）
+// ============================================================
+function viewApprovalWorksheet(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  if (!d) return;
+
+  var infoHtml = '<table class="ws-info-table">' +
+    '<tr><td colspan="2" class="ws-section">委托信息</td></tr>' +
+    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
+    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
+    '<tr><td>联系人</td><td>' + (d.contact || '-') + '</td></tr>' +
+    '<tr><td>联系方式</td><td>' + (d.phone || '-') + '</td></tr>' +
+    '<tr><td>委托方地址</td><td>' + (d.address || '-') + '</td></tr>' +
+    '<tr><td colspan="2" class="ws-section">检测信息</td></tr>' +
+    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
+    '<tr><td>检测内容</td><td>' + (d.testContent || '-') + '</td></tr>' +
+    '<tr><td>检测领域</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td></tr>' +
+    '<tr><td>检测依据</td><td>' + (d.standards || '-') + '</td></tr>' +
+    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
+    '<tr><td>特殊要求</td><td>' + (d.specialReq || '无') + '</td></tr>' +
+    '</table>';
+
+  if (d.status === '已通过' || d.status === '已退回') {
+    // 已完成：展示各审批人明细
+    var tables = d.approvers.map(function(av) {
+      var itemRows = '';
+      if (av.items) {
+        itemRows = ITEM_KEYS.map(function(k) {
+          return '<tr><td>' + ITEM_LABELS[k] + '</td><td>' + (av.items[k] || '-') + '</td></tr>';
+        }).join('');
+      }
+      return '<div style="margin-bottom:12px;border:1px solid #f0f0f0;border-radius:6px;overflow:hidden">' +
+        '<div style="padding:6px 10px;background:#fafafa;font-weight:bold;font-size:13px">' + av.name + '（' + av.role + '）— ' + statusTag(av.result || '未填写') +
+        (av.comment ? ' <span style="color:#999;font-weight:normal;font-size:11px">' + av.comment + '</span>' : '') + '</div>' +
+        (itemRows ? '<table class="review-items-table">' + itemRows + '</table>' : '') + '</div>';
+    }).join('');
+    var rightHtml = '<div class="ws-right"><div class="ws-right-title">审批明细（已' + d.status + '）</div>' + tables + '</div>';
+    showModal('委托审批工单 - ' + d.id, '<div class="ws-layout"><div class="ws-left">' + infoHtml + rightHtml + '</div>');
+  } else {
+    // 审批中：展示各审批人填写进度
+    var approverRows = d.approvers.map(function(av) {
+      var filled = av.result ? true : false;
+      var isMe = av.name === LOGIN_USER;
+      var btnHtml = isMe
+        ? '<button class="btn btn-primary btn-sm" onclick="fillApprovalWorkOrder(\'' + delegateId + '\')">' + (filled ? '修改' : '填写') + '</button>'
+        : (filled ? statusTag(av.result) : '<span style="color:#bbb;font-size:11px">等待填写</span>');
+      return '<tr><td>' + av.name + '</td><td>' + av.role + '</td>' +
+        '<td>' + (filled ? statusTag(av.result) : '<span style="color:#999">未填写</span>') + '</td>' +
+        '<td>' + btnHtml + '</td></tr>';
+    }).join('');
+    var allFilled = d.approvers.every(function(av) { return !!av.result; });
+    var rightHtml = '<div class="ws-right"><div class="ws-right-title">审批人填写进度</div>' +
+      '<table><thead><tr><th>审批人</th><th>角色</th><th>结论</th><th>操作</th></tr></thead><tbody>' + approverRows + '</tbody></table>' +
+      (allFilled ? '<div style="margin-top:16px;text-align:center"><button class="btn btn-warning" onclick="finalizeApproval(\'' + delegateId + '\')">汇总审批结论</button></div>' : '') +
+      '</div>';
+    showModal('委托审批工单 - ' + d.id, '<div class="ws-layout"><div class="ws-left">' + infoHtml + rightHtml + '</div>');
+  }
+}
+
+// ============================================================
+// 1.3 委托审批 - 填写审批工单
 // ============================================================
 function fillApprovalWorkOrder(delegateId) {
   var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
