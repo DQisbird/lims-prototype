@@ -2214,14 +2214,23 @@ function pageTask() {
   function rowHtml(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
     var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
-    var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
+    var ops = '';
+    // 阶段操作按钮（仅进行中任务显示）
+    if (t.status === '进行中') {
+      if (t.currentStage === '样品接收') {
+        ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
+      } else if (t.currentStage === '任务派工') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+      }
+    }
+    ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
     if (t.reviewId) {
       ops += ' <button class="btn btn-default btn-sm" onclick="viewReviewDetail(\'' + t.reviewId + '\')">查看委托</button>';
     }
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
-      '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
+      '<td>' + (t.planEnd||'-') + '</td><td style="white-space:nowrap">' + ops + '</td></tr>';
   }
 
   function refreshTaskTable() {
@@ -2283,12 +2292,20 @@ function switchTaskTab(tab) {
   var rows = taskFiltered.map(function(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
     var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
-    var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
+    var ops = '';
+    if (t.status === '进行中') {
+      if (t.currentStage === '样品接收') {
+        ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
+      } else if (t.currentStage === '任务派工') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+      }
+    }
+    ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
     if (t.reviewId) ops += ' <button class="btn btn-default btn-sm" onclick="viewReviewDetail(\'' + t.reviewId + '\')">查看委托</button>';
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
-      '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
+      '<td>' + (t.planEnd||'-') + '</td><td style="white-space:nowrap">' + ops + '</td></tr>';
   }).join('');
   var tbody = document.getElementById('task_tbody');
   if (tbody) tbody.innerHTML = rows || '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px">无匹配任务</td></tr>';
@@ -2337,22 +2354,6 @@ function viewTaskDetail(taskId) {
     '<div style="margin:16px 0"><b>流转记录</b></div>' +
     '<table><thead><tr><th>阶段</th><th>日期</th><th>操作人</th><th>详细信息</th></tr></thead><tbody>' + (historyHtml || '<tr><td colspan="4" style="text-align:center;color:#999">暂无流转记录</td></tr>') + '</tbody></table>';
 
-
-  // 阶段操作区
-  var stageIdx = STAGES.indexOf(t.currentStage);
-  var opHtml = '';
-  if (t.status !== '已完成' && t.status !== '已归档') {
-    opHtml = '<div style="margin:16px 0"><b>当前阶段操作 — ' + t.currentStage + '</b></div><div style="padding:12px;background:#fff7e6;border-radius:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
-    if (t.currentStage === '样品接收') {
-      opHtml += '<button class="btn btn-success" onclick="stageReceiveSample(\'' + t.id + '\')">✓ 确认样品已接收</button>';
-    } else if (t.currentStage === '任务派工') {
-      opHtml += '<button class="btn btn-primary" onclick="openTaskAssignModal(\'' + t.id + '\')">📋 任务派工</button>';
-    } else {
-      opHtml += '<span style="color:#999">该阶段操作待实现...</span>';
-    }
-    opHtml += '</div>';
-  }
-  body += opHtml;
   showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
   var modal = document.getElementById('modalOverlay');
   var modalEl = modal.querySelector('.modal');
