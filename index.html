@@ -1555,7 +1555,8 @@ function renderCommissionList() {
     } else if (d.status === '已通过') {
       ops = '<span style="color:#52c41a;font-size:12px">✓已通过</span> ' + detailBtn;
     } else if (d.status === '已退回') {
-      ops = '<button class="btn btn-primary btn-sm" onclick="showCommissionForm(\'' + d.id + '\')">重新编辑</button> ' + detailBtn;
+      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看审批进度</button> ' +
+            '<button class="btn btn-warning btn-sm" onclick="refireCommission(\'' + d.id + '\')">重新发起</button> ' + detailBtn;
     }
     return '<tr>' +
       '<td>' + d.id + '</td><td>' + d.client + '</td><td>' + contractDisplay + '</td>' +
@@ -1850,6 +1851,30 @@ function deleteCommission(id) {
   navTo('commission');
 }
 
+// 重新发起委托（不通过后）
+function refireCommission(id) {
+  var d = DELEGATES.filter(function(x) { return x.id === id; })[0];
+  if (!d) return;
+  if (d.status !== '已退回' && d.approvalConclusion !== '不通过') { alert('仅可重新发起审批不通过的委托'); return; }
+  if (!confirm('确定基于 ' + id + ' 重新发起委托吗？将生成新委托编号，原审批记录不再保留。')) return;
+
+  var newId = generateDelegateId();
+  var newDelegate = {
+    id: newId, contractId: d.contractId, client: d.client,
+    contact: d.contact, phone: d.phone, address: d.address,
+    objNameVer: d.objNameVer, testContent: d.testContent,
+    domains: d.domains.slice(), standards: d.standards,
+    deadline: d.deadline, specialReq: d.specialReq,
+    attachments: d.attachments ? d.attachments.slice() : [],
+    status: '待审批', createDate: fmt(NOW), creator: LOGIN_USER,
+    approvers: [], approvalConclusion: ''
+  };
+  DELEGATES.push(newDelegate);
+  if (d.contractId) updateContractDelegateCount(d.contractId);
+  navTo('commission');
+  alert('已重新发起委托！新编号：' + newId);
+}
+
 // ============================================================
 // 1.3 委托详情查看
 // ============================================================
@@ -1878,15 +1903,33 @@ function viewCommissionDetail(delegateId) {
 
   if (d.approvers && d.approvers.length > 0) {
     var approverInfo = d.approvers.map(function(av) {
-      return av.name + '（' + av.role + '）：' + (av.result || '未填写');
+      var label = av.result === '不通过' ? '<span style="color:#ff4d4f">✗ ' + av.result + '</span>' : (av.result || '未填写');
+      return av.name + '（' + av.role + '）：' + label;
     }).join('<br>');
     rows += '<tr><td><b>审批人</b></td><td>' + approverInfo + '</td></tr>';
+    // 不通过时展示拒绝原因
+    var rejected = d.approvers.filter(function(av) { return av.result === '不通过'; });
+    if (rejected.length > 0) {
+      var rejectDetail = rejected.map(function(av) {
+        var failItems = [];
+        if (av.items) {
+          ITEM_KEYS.forEach(function(k) { if (av.items[k] === '否') failItems.push(ITEM_LABELS[k].replace('是否', '').replace('满足', '')); });
+        }
+        return '<div style="margin-bottom:6px;padding:6px 10px;background:#fff2f0;border-left:3px solid #ff4d4f;border-radius:3px;font-size:12px">' +
+          '<b>' + av.name + '</b>（' + av.role + '）不通过' +
+          (failItems.length > 0 ? '<br><span style="color:#666">不满足项：</span>' + failItems.join('、') : '') +
+          (av.comment ? '<br><span style="color:#666">原因：</span>' + av.comment : '') +
+          '</div>';
+      }).join('');
+      rows += '<tr><td><b>不通过详情</b></td><td>' + rejectDetail + '</td></tr>';
+    }
   }
 
   showModal('委托详情 - ' + d.id,
     '<table class="ws-form-table">' + rows + '</table>',
     '<button class="btn btn-default" onclick="closeModal()">关闭</button>' +
-    (d.status === '审批中' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批进度</button>' : '')
+    (d.status === '审批中' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批进度</button>' : '') +
+    (d.status === '已退回' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批工单</button>' : '')
   );
 }
 
