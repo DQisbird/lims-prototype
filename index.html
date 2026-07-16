@@ -309,30 +309,30 @@ var CONTRACT_STATUS = { '草稿': 'default', '进行中': 'green', '已完成': 
 
 var DELEGATES = [
   {
-    id: 'TZJC-WTSQ-2026-01-05-001', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
+    id: 'TZJC/JSJL-2026-01-05.WTSQ-1', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
     contact: '赵处长', phone: '13800138001', address: '深圳市福田区',
-    objName: '智慧校园管理系统V3.0', objVersion: 'V3.0.1', objType: '软件系统',
+    objNameVer: '智慧校园管理系统V3.0 (V3.0.1)', testContent: '对智慧校园管理系统V3.0进行软件质量检测，包括功能性、性能效率、兼容性、易用性、可靠性、安全性等质量特性',
     domains: ['RJ'], standards: 'GB/T 25000.51-2016', deadline: '2026-06-01',
     specialReq: '', status: '已通过', createDate: '2026-01-05', creator: '张工'
   },
   {
-    id: 'TZJC-WTSQ-2026-01-20-001', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
+    id: 'TZJC/JSJL-2026-01-20.WTSQ-1', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
     contact: '赵处长', phone: '13800138001', address: '深圳市福田区',
-    objName: '智慧校园管理系统V3.0', objVersion: 'V3.0.2', objType: '软件系统',
+    objNameVer: '智慧校园管理系统V3.0 (V3.0.2)', testContent: '对智慧校园管理系统V3.0进行软件质量检测及安全性检测',
     domains: ['RJ', 'AQ'], standards: 'GB/T 25000.51-2016', deadline: '2026-07-01',
     specialReq: '需增加安全性检测', status: '审批中', createDate: '2026-01-20', creator: '张工'
   },
   {
-    id: 'TZJC-WTSQ-2026-01-15-001', contractId: 'TZJC-JCHT-2025-12-20', client: '北京消防科技公司',
+    id: 'TZJC/JSJL-2026-01-15.WTSQ-1', contractId: 'TZJC-JCHT-2025-12-20', client: '北京消防科技公司',
     contact: '刘经理', phone: '13900139001', address: '北京市海淀区',
-    objName: '消防报警控制器JB-QB', objVersion: 'V2.1', objType: '硬件设备',
+    objNameVer: '消防报警控制器JB-QB (V2.1)', testContent: '对消防报警控制器JB-QB进行安全检测，验证报警响应时间、误报率、环境适应性等指标',
     domains: ['YJ'], standards: 'GB 4717-2005', deadline: '2026-03-01',
     specialReq: '', status: '已通过', createDate: '2026-01-15', creator: '李工'
   },
   {
-    id: 'TZJC-WTSQ-2026-07-10-001', contractId: 'TZJC-JCHT-2026-07-20', client: '国家电网华东分部',
+    id: 'TZJC/JSJL-2026-07-10.WTSQ-1', contractId: 'TZJC-JCHT-2026-07-20', client: '国家电网华东分部',
     contact: '王处长', phone: '13500135001', address: '上海市浦东新区',
-    objName: '智能电网调度控制系统', objVersion: 'V4.0', objType: '软件系统',
+    objNameVer: '智能电网调度控制系统 (V4.0)', testContent: '对智能电网调度控制系统进行硬件安全检测和软件质量检测，覆盖SCADA、EMS、DMS等子系统',
     domains: ['YJ', 'AQ'], standards: 'GB/T 22239-2019', deadline: '2027-01-20',
     specialReq: '需覆盖SCADA/EMS/DMS子系统', status: '待审批', createDate: '2026-07-10', creator: '王工'
   }
@@ -526,6 +526,11 @@ function multiSelectRemove(id, val) {
   if (idx >= 0) selected.splice(idx, 1);
   hidden.setAttribute('data-sel', JSON.stringify(selected));
   multiSelectRefresh(id);
+}
+
+function getMultiSelectValues(id) {
+  var hidden = document.getElementById(id);
+  return JSON.parse(hidden.getAttribute('data-sel') || '[]');
 }
 
 // ============================================================
@@ -783,7 +788,7 @@ function showReviewForm(editId) {
     { l: '检测内容', r: 1, h: '<textarea id="rf_content" rows="3" placeholder="请输入检测内容描述">' + (init.testContent || '') + '</textarea>' },
     { l: '检测标准依据', r: 1, h: '<input id="rf_standard" value="' + (init.standardBasis || '') + '" placeholder="如：GB/T 25000.51-2016">' },
     { l: '合同金额', h: '<input id="rf_amount" type="number" value="' + (init.contractAmount || '') + '" placeholder="单位：元">' },
-    { l: '交付期', h: '<input id="rf_deliveryDate" type="date" value="' + (init.deliveryDate || '') + '">' },
+    { l: '交付期', h: '<input id="rf_deliveryDate" type="text" value="' + (init.deliveryDate || fmt(NOW)) + '" placeholder="如：2026-06-01 或 至终验为止">' },
     { l: '交付方式', h: '<input id="rf_deliveryMethod" value="' + (init.deliveryMethod || '') + '" placeholder="如：电子版报告+纸质盖章版">' },
     { l: '是否使用标识', r: 1, h: makeSelect('rf_useLogo', ['否', '是'], init.useLogo || '') },
     { l: '其他要求说明', h: '<textarea id="rf_other" rows="2" placeholder="如有特殊要求请说明">' + (init.otherRequirements || '') + '</textarea>' },
@@ -1244,7 +1249,7 @@ function showContractCreate() {
     '<tr><td>客户名称</td><td><input id="ctClient" type="text" style="width:100%;padding:6px;background:#f5f5f5" readonly></td></tr>' +
     '<tr><td>合同金额（元）</td><td><input id="ctAmount" type="number" style="width:100%;padding:6px"></td></tr>' +
     '<tr><td>签订日期</td><td><input id="ctSignDate" type="date" style="width:100%;padding:6px"></td></tr>' +
-    '<tr><td>服务期限</td><td><input id="ctPeriod" type="text" style="width:100%;padding:6px" placeholder="如：2026-07-20 至 2027-01-20"></td></tr>' +
+    '<tr><td>服务期限</td><td><input id="ctPeriod" type="text" style="width:100%;padding:6px" value="' + fmt(NOW) + '" placeholder="如：2026-07-20 至 2027-01-20"></td></tr>' +
     '<tr><td>合同条款摘要</td><td><textarea id="ctSummary" style="width:100%;padding:6px;height:80px" placeholder="合同主要条款摘要..."></textarea></td></tr>' +
     '<tr><td>合同附件 <span style="color:red">*</span></td><td><input type="file" id="ctFile" style="padding:6px"></td></tr>' +
     '</table>';
@@ -1261,7 +1266,7 @@ function onCtReviewChange() {
     document.getElementById('ctClient').value = '';
     document.getElementById('ctName').value = '';
     document.getElementById('ctAmount').value = '';
-    document.getElementById('ctPeriod').value = '';
+    document.getElementById('ctPeriod').value = fmt(NOW);
     document.getElementById('ctSummary').value = '';
     return;
   }
@@ -1270,7 +1275,7 @@ function onCtReviewChange() {
     document.getElementById('ctClient').value = r.client;
     document.getElementById('ctName').value = r.proj + '检测合同';
     document.getElementById('ctAmount').value = r.contractAmount || '';
-    document.getElementById('ctPeriod').value = r.deliveryDate ? (r.signDate || '') + ' 至 ' + r.deliveryDate : '';
+    document.getElementById('ctPeriod').value = r.deliveryDate || '';
     document.getElementById('ctSummary').value = r.testContent || '';
     // 合同编号后缀自动建议：评审日期
     if (r.date) { document.getElementById('ctIdTail').value = r.date; }
@@ -1417,14 +1422,14 @@ function viewContractDelegates(cid) {
   var rows = delegates.map(function(d) {
     return '<tr>' +
       '<td>' + d.id + '</td><td>' + d.client + '</td>' +
-      '<td>' + d.objName + '</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td>' +
+      '<td>' + d.objNameVer + '</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td>' +
       '<td>' + statusTag(d.status) + '</td><td>' + (d.createDate || '-') + '</td>' +
       '</tr>';
   }).join('');
 
   showModal('合同 ' + cid + ' 关联委托列表',
     '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
-      '<th>委托编号</th><th>委托方</th><th>检测对象</th><th>检测领域</th><th>状态</th><th>创建日期</th>' +
+      '<th>委托编号</th><th>委托方</th><th>检测对象名称及版本</th><th>检测领域</th><th>状态</th><th>创建日期</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table>',
     '<button class="btn btn-default" onclick="closeModal()">关闭</button>'
   );
@@ -1464,7 +1469,7 @@ function renderCommissionList() {
     }
     return '<tr>' +
       '<td>' + d.id + '</td><td>' + d.client + '</td><td>' + contractDisplay + '</td>' +
-      '<td>' + d.objName + '</td><td>' + domainLabels + '</td>' +
+      '<td>' + d.objNameVer + '</td><td>' + domainLabels + '</td>' +
       '<td>' + (d.deadline || '-') + '</td>' +
       '<td>' + statusTag(d.status) + '</td><td>' + (d.createDate || '-') + '</td>' +
       '<td>' + ops + '</td></tr>';
@@ -1486,7 +1491,7 @@ function renderCommissionList() {
   return '<div class="card"><div class="card-title">委托列表</div>' +
     filterBarCommission() +
     '<table><thead><tr>' +
-    '<th>委托编号</th><th>委托方名称</th><th>关联合同</th><th>检测对象</th><th>检测领域</th><th>要求完成时间</th><th>委托状态</th><th>创建时间</th><th>操作</th>' +
+    '<th>委托编号</th><th>委托方名称</th><th>关联合同</th><th>检测对象名称及版本</th><th>检测领域</th><th>要求完成时间</th><th>委托状态</th><th>创建时间</th><th>操作</th>' +
     '</tr></thead><tbody>' + (list.length ? rows : '<tr><td colspan="9" style="text-align:center;color:#999;padding:30px">暂无委托记录</td></tr>') + '</tbody></table>' +
     pagination + '</div>';
 }
@@ -1540,12 +1545,11 @@ function showCommissionForm(editId) {
     { l: '联系人', r: 1, h: '<input id="cf_contact" value="' + (init.contact || '') + '" placeholder="请输入联系人">' },
     { l: '联系方式', r: 1, h: '<input id="cf_phone" value="' + (init.phone || '') + '" placeholder="请输入联系方式">' },
     { l: '委托方地址', r: 1, h: '<input id="cf_address" value="' + (init.address || '') + '" placeholder="请输入委托方地址">' },
-    { l: '检测对象名称', r: 1, h: '<input id="cf_objName" value="' + (init.objName || '') + '" placeholder="请输入检测对象名称">' },
-    { l: '检测对象版本', r: 1, h: '<input id="cf_objVersion" value="' + (init.objVersion || '') + '" placeholder="请输入版本号">' },
-    { l: '检测对象类型', r: 1, h: '<select id="cf_objType"><option value="">请选择</option><option value="软件系统"' + (init.objType === '软件系统' ? ' selected' : '') + '>软件系统</option><option value="硬件设备"' + (init.objType === '硬件设备' ? ' selected' : '') + '>硬件设备</option><option value="电子文档"' + (init.objType === '电子文档' ? ' selected' : '') + '>电子文档</option><option value="其他"' + (init.objType === '其他' ? ' selected' : '') + '>其他</option></select>' },
-    { l: '检测领域', r: 1, h: multiSelectHtml('cf_domains', selDomains, dOpts, '点击选择检测领域（至少选1个）') },
+    { l: '检测对象名称及版本', r: 1, h: '<input id="cf_objNameVer" value="' + (init.objNameVer || '') + '" placeholder="请输入检测对象名称及版本">' },
+    { l: '检测内容', r: 1, h: '<textarea id="cf_testContent" rows="2" placeholder="检测内容描述">' + (init.testContent || '') + '</textarea>' },
+    { l: '检测领域', r: 1, h: '<input type="hidden" id="cf_domains" data-sel=\'' + JSON.stringify(selDomains) + '\' data-opts=\'' + JSON.stringify(dOpts) + '\'>' + multiSelectHtml('cf_domains', selDomains, dOpts, '点击选择检测领域（至少选1个）') },
     { l: '检测依据', r: 1, h: '<input id="cf_standards" value="' + (init.standards || '') + '" placeholder="如 GB/T 25000.51-2016">' },
-    { l: '要求完成时间', r: 1, h: '<input type="date" id="cf_deadline" value="' + (init.deadline || '') + '">' },
+    { l: '要求完成时间', r: 1, h: '<input type="text" id="cf_deadline" value="' + (init.deadline || fmt(NOW)) + '" placeholder="如：2026-06-01 或 至终验为止">' },
     { l: '特殊要求/说明', r: 1, h: '<textarea id="cf_specialReq" placeholder="无特殊要求可不填">' + (init.specialReq || '') + '</textarea>' }
   ]);
 
@@ -1566,9 +1570,14 @@ function onContractSelect() {
   var contactEl = document.getElementById('cf_contact');
   var phoneEl = document.getElementById('cf_phone');
   var addrEl = document.getElementById('cf_address');
+  var objEl = document.getElementById('cf_objNameVer');
+  var testEl = document.getElementById('cf_testContent');
+  var stdEl = document.getElementById('cf_standards');
+  var dlEl = document.getElementById('cf_deadline');
   if (!cid) {
     clientEl.value = ''; clientEl.readOnly = false; clientEl.style.background = '';
     contactEl.value = ''; phoneEl.value = ''; addrEl.value = '';
+    objEl.value = ''; testEl.value = ''; stdEl.value = ''; dlEl.value = fmt(NOW);
     return;
   }
   var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
@@ -1577,7 +1586,14 @@ function onContractSelect() {
     var r = REVIEWS.filter(function(x) { return x.id === c.reviewId; })[0];
     if (r) {
       contactEl.value = r.contact || ''; phoneEl.value = r.phone || '';
+      objEl.value = r.proj || '';
+      testEl.value = r.testContent || '';
+      stdEl.value = r.standardBasis || '';
     }
+    dlEl.value = c.servicePeriod || fmt(NOW);
+    // 委托方地址：从同客户的已有委托中获取
+    var existing = DELEGATES.filter(function(d) { return d.client === c.client && d.address; });
+    addrEl.value = existing.length > 0 ? existing[0].address : '';
   }
 }
 
@@ -1635,12 +1651,10 @@ function submitCommission(editId) {
 function collectCommissionForm(editId) {
   var domains = getMultiSelectValues('cf_domains');
   if (domains.length === 0) { alert('请至少选择1个检测领域'); return null; }
-  var objName = document.getElementById('cf_objName').value.trim();
-  if (!objName) { alert('请输入检测对象名称'); return null; }
+  var objNameVer = document.getElementById('cf_objNameVer').value.trim();
+  if (!objNameVer) { alert('请输入检测对象名称及版本'); return null; }
   var client = document.getElementById('cf_client2').value.trim();
   if (!client) { alert('请输入委托方名称'); return null; }
-  var objType = document.getElementById('cf_objType').value;
-  if (!objType) { alert('请选择检测对象类型'); return null; }
 
   var contractId = document.getElementById('cf_contract').value;
   var existing = editId ? DELEGATES.filter(function(x) { return x.id === editId; })[0] : null;
@@ -1652,12 +1666,11 @@ function collectCommissionForm(editId) {
     contact: document.getElementById('cf_contact').value.trim(),
     phone: document.getElementById('cf_phone').value.trim(),
     address: document.getElementById('cf_address').value.trim(),
-    objName: objName,
-    objVersion: document.getElementById('cf_objVersion').value.trim(),
-    objType: objType,
+    objNameVer: objNameVer,
+    testContent: document.getElementById('cf_testContent').value.trim(),
     domains: domains,
     standards: document.getElementById('cf_standards').value.trim(),
-    deadline: document.getElementById('cf_deadline').value,
+    deadline: document.getElementById('cf_deadline').value.trim(),
     specialReq: document.getElementById('cf_specialReq').value.trim(),
     status: existing ? existing.status : '待审批',
     createDate: existing ? existing.createDate : '',
@@ -1666,11 +1679,10 @@ function collectCommissionForm(editId) {
 }
 
 function generateDelegateId() {
-  var today = fmt(NOW).replace(/-/g, '');
-  var prefix = 'TZJC-WTSQ-' + today + '-';
+  var today = fmt(NOW);
+  var prefix = "TZJC/JSJL-" + today + ".WTSQ-";
   var sameDay = DELEGATES.filter(function(d) { return d.id.indexOf(prefix) === 0; });
-  var seq = (sameDay.length + 1).toString().padStart(3, '0');
-  return prefix + seq;
+  return prefix + (sameDay.length + 1);
 }
 
 function updateContractDelegateCount(cid) {
