@@ -353,6 +353,19 @@ var DELEGATES = [
     domains: ['YJ', 'AQ'], standards: 'GB/T 22239-2019', deadline: '2027-01-20',
     specialReq: '需覆盖SCADA/EMS/DMS子系统', status: '待审批', createDate: '2026-07-10', creator: '王工',
     approvers: [], approvalConclusion: ''
+  },
+  {
+    id: 'TZJC/JSJL-2026-07-08.WTSQ-1', contractId: 'TZJC-JCHT-2026-03-15', client: '浙江省政务云中心',
+    contact: '陈主任', phone: '13905710001', address: '杭州市西湖区',
+    objNameVer: '政务云安全渗透测试Q3 (V1.0)', testContent: '对浙江省政务云平台Q3季度渗透测试：漏洞扫描、渗透攻击、权限提升、数据泄露风险检测',
+    domains: ['AQ'], standards: 'GB/T 22239-2019', deadline: '2026-09-30',
+    specialReq: '需签署保密协议，测试时间窗口为周末凌晨', status: '已退回', createDate: '2026-07-08', creator: '张工',
+    attachments: ['政务云渗透测试技术要求_v2.pdf', '保密协议_已签署.pdf'],
+    approvers: [
+      { name: '张工', role: '质量负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } },
+      { name: '李工', role: '部门负责人', result: '不通过', comment: '人员配备不足，渗透测试需要红队资质人员参与，当前项目组仅2人持证', items: { staff: '否', device: '是', env: '是', delivery: '是', sample: '否', outsource: '否', risk: '是', scope: '是' } },
+      { name: '赵工', role: '技术负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } }
+    ], approvalConclusion: '不通过'
   }
 ];
 var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过': 'green', '已退回': 'red' };
