@@ -2284,8 +2284,8 @@ function pageTask() {
       }
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
-    if (t.reviewId) {
-      ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail('" + t.delegateId + "')">查看委托</button>';
+    if (t.delegateId) {
+      ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
     }
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
@@ -2361,7 +2361,7 @@ function switchTaskTab(tab) {
       }
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
-    if (t.reviewId) ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail('" + t.delegateId + "')">查看委托</button>';
+    if (t.delegateId) ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
