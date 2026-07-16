@@ -313,28 +313,42 @@ var DELEGATES = [
     contact: '赵处长', phone: '13800138001', address: '深圳市福田区',
     objNameVer: '智慧校园管理系统V3.0 (V3.0.1)', testContent: '对智慧校园管理系统V3.0进行软件质量检测，包括功能性、性能效率、兼容性、易用性、可靠性、安全性等质量特性',
     domains: ['RJ'], standards: 'GB/T 25000.51-2016', deadline: '2026-06-01',
-    specialReq: '', status: '已通过', createDate: '2026-01-05', creator: '张工'
+    specialReq: '', status: '已通过', createDate: '2026-01-05', creator: '张工',
+    approvers: [
+      { name: '李工', role: '部门负责人', result: '通过', comment: '' },
+      { name: '赵工', role: '技术负责人', result: '通过', comment: '' }
+    ], approvalConclusion: '通过'
   },
   {
     id: 'TZJC/JSJL-2026-01-20.WTSQ-1', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
     contact: '赵处长', phone: '13800138001', address: '深圳市福田区',
     objNameVer: '智慧校园管理系统V3.0 (V3.0.2)', testContent: '对智慧校园管理系统V3.0进行软件质量检测及安全性检测',
     domains: ['RJ', 'AQ'], standards: 'GB/T 25000.51-2016', deadline: '2026-07-01',
-    specialReq: '需增加安全性检测', status: '审批中', createDate: '2026-01-20', creator: '张工'
+    specialReq: '需增加安全性检测', status: '审批中', createDate: '2026-01-20', creator: '张工',
+    approvers: [
+      { name: '张工', role: '质量负责人', result: '', comment: '' },
+      { name: '李工', role: '部门负责人', result: '', comment: '' },
+      { name: '赵工', role: '技术负责人', result: '', comment: '' }
+    ], approvalConclusion: ''
   },
   {
     id: 'TZJC/JSJL-2026-01-15.WTSQ-1', contractId: 'TZJC-JCHT-2025-12-20', client: '北京消防科技公司',
     contact: '刘经理', phone: '13900139001', address: '北京市海淀区',
     objNameVer: '消防报警控制器JB-QB (V2.1)', testContent: '对消防报警控制器JB-QB进行安全检测，验证报警响应时间、误报率、环境适应性等指标',
     domains: ['YJ'], standards: 'GB 4717-2005', deadline: '2026-03-01',
-    specialReq: '', status: '已通过', createDate: '2026-01-15', creator: '李工'
+    specialReq: '', status: '已通过', createDate: '2026-01-15', creator: '李工',
+    approvers: [
+      { name: '张工', role: '质量负责人', result: '通过', comment: '' },
+      { name: '赵工', role: '技术负责人', result: '通过', comment: '' }
+    ], approvalConclusion: '通过'
   },
   {
     id: 'TZJC/JSJL-2026-07-10.WTSQ-1', contractId: 'TZJC-JCHT-2026-07-20', client: '国家电网华东分部',
     contact: '王处长', phone: '13500135001', address: '上海市浦东新区',
     objNameVer: '智能电网调度控制系统 (V4.0)', testContent: '对智能电网调度控制系统进行硬件安全检测和软件质量检测，覆盖SCADA、EMS、DMS等子系统',
     domains: ['YJ', 'AQ'], standards: 'GB/T 22239-2019', deadline: '2027-01-20',
-    specialReq: '需覆盖SCADA/EMS/DMS子系统', status: '待审批', createDate: '2026-07-10', creator: '王工'
+    specialReq: '需覆盖SCADA/EMS/DMS子系统', status: '待审批', createDate: '2026-07-10', creator: '王工',
+    approvers: [], approvalConclusion: ''
   }
 ];
 var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过': 'green', '已退回': 'red' };
@@ -351,11 +365,18 @@ var reviewPage = 1, reviewPageSize = 5, reviewFilteredData = [];
 // 计算待办数量
 function pendingCount() {
   var count = 0;
-  // 合同评审：status=pending 且 当前用户是评审人且未填写
   REVIEWS.forEach(function(r) {
     if (r.status === 'pending') {
       r.reviewers.forEach(function(rv) {
         if (rv.name === LOGIN_USER && !rv.result) count++;
+      });
+    }
+  });
+  // 委托审批工单
+  DELEGATES.forEach(function(d) {
+    if (d.status === '审批中' && d.approvers) {
+      d.approvers.forEach(function(av) {
+        if (av.name === LOGIN_USER && !av.result) count++;
       });
     }
   });
@@ -542,6 +563,7 @@ function renderPage() {
     case 'review': c.innerHTML = pageReview(); break;
     case 'contract': c.innerHTML = pageContract(); break;
     case 'commission': c.innerHTML = pageCommission(); break;
+    case 'approval': c.innerHTML = pageApproval(); break;
     case 'todo': c.innerHTML = pageTodo(); break;
     case 'done': c.innerHTML = pageDone(); break;
     default: c.innerHTML = pagePlaceholder(TITLES[curPage] || curPage); break;
@@ -561,7 +583,17 @@ function pageTodo() {
     if (r.status === 'pending') {
       r.reviewers.forEach(function(rv) {
         if (rv.name === LOGIN_USER && !rv.result) {
-          todos.push({ type: '合同评审', refId: r.id, project: r.proj, client: r.client, date: r.date, target: 'review' });
+          todos.push({ type: '合同评审', refId: r.id, project: r.proj, client: r.client, date: r.date, target: 'review', action: 'review' });
+        }
+      });
+    }
+  });
+  // 委托审批工单
+  DELEGATES.forEach(function(d) {
+    if (d.status === '审批中' && d.approvers) {
+      d.approvers.forEach(function(av) {
+        if (av.name === LOGIN_USER && !av.result) {
+          todos.push({ type: '委托审批', refId: d.id, project: d.objNameVer, client: d.client, date: d.createDate, target: 'approval', action: 'approval' });
         }
       });
     }
@@ -572,14 +604,17 @@ function pageTodo() {
   }
 
   var rows = todos.map(function(t) {
+    var btnHtml = t.action === 'approval'
+      ? '<button class="btn btn-primary btn-sm" onclick="fillApprovalWorkOrder(\'' + t.refId + '\')">处理</button>'
+      : '<button class="btn btn-primary btn-sm" onclick="navTo(\'' + t.target + '\')">处理</button>';
     return '<tr><td>' + t.type + '</td><td>' + t.project + '</td><td>' + t.client + '</td><td>' + t.date + '</td><td>' + t.refId + '</td>' +
-      '<td><button class="btn btn-primary btn-sm" onclick="navTo(\'' + t.target + '\')">处理</button></td></tr>';
+      '<td>' + btnHtml + '</td></tr>';
   }).join('');
 
   return '<div class="card"><div class="card-title">待办工单</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option></select>' +
+        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option></select>' +
         '<input placeholder="项目名称" id="todo_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="客户名称" id="todo_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="编号" id="todo_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
@@ -1461,7 +1496,7 @@ function renderCommissionList() {
             '<button class="btn btn-success btn-sm" onclick="submitCommission(\'' + d.id + '\')">提交审批</button> ' +
             '<button class="btn btn-danger btn-sm" onclick="deleteCommission(\'' + d.id + '\')">删除</button>';
     } else if (d.status === '审批中') {
-      ops = '<span style="color:#999;font-size:12px">审批中</span>';
+      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看审批进度</button>';
     } else if (d.status === '已通过') {
       ops = '<span style="color:#52c41a;font-size:12px">已通过</span>';
     } else if (d.status === '已退回') {
@@ -1643,9 +1678,58 @@ function submitCommission(editId) {
     DELEGATES.push(data);
     updateContractDelegateCount(data.contractId);
   }
+  // 弹出选择审批人
+  showApproverSelect(data.id);
+}
+
+// 选择审批人弹窗
+function showApproverSelect(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  if (!d) return;
+  var existing = d.approvers || [];
+  var existingNames = existing.map(function(a) { return a.name; });
+  // 模拟人员列表
+  var allPersons = [
+    { name: '张工', role: '质量负责人' },
+    { name: '李工', role: '部门负责人' },
+    { name: '赵工', role: '技术负责人' },
+    { name: '王工', role: '授权签字人' },
+    { name: '周工', role: '测试工程师' }
+  ];
+  var checkboxes = allPersons.map(function(p, i) {
+    var checked = existingNames.indexOf(p.name) >= 0 ? ' checked' : '';
+    return '<label style="display:block;padding:6px 0;cursor:pointer"><input type="checkbox" id="aprv_' + i + '" value="' + p.name + '" data-role="' + p.role + '"' + checked + '> ' + p.name + '（' + p.role + '）</label>';
+  }).join('');
+
+  var body = '<p style="margin-bottom:12px;color:#666;font-size:13px">委托编号：<b>' + d.id + '</b> &nbsp;|&nbsp; 委托方：<b>' + d.client + '</b></p>' +
+    '<p style="margin-bottom:12px;color:#ff4d4f;font-size:12px">⚠ 必须包含技术负责人和部门负责人</p>' +
+    '<div style="max-height:300px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:6px;padding:8px 16px">' + checkboxes + '</div>';
+
+  var footer = '<button class="btn btn-default" onclick="closeModal();navTo(\'commission\')">取消</button>' +
+    '<button class="btn btn-primary" onclick="confirmApprovers(\'' + delegateId + '\')">确认提交</button>';
+
+  showModal('选择审批人', body, footer);
+}
+
+function confirmApprovers(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  if (!d) return;
+  var approvers = [];
+  var boxes = document.querySelectorAll('#modalBody input[type="checkbox"]:checked');
+  boxes.forEach(function(cb) {
+    approvers.push({ name: cb.value, role: cb.getAttribute('data-role'), result: '', comment: '' });
+  });
+  if (approvers.length === 0) { alert('请至少选择1位审批人'); return; }
+  var hasTech = approvers.some(function(a) { return a.role === '技术负责人'; });
+  var hasDept = approvers.some(function(a) { return a.role === '部门负责人'; });
+  if (!hasTech || !hasDept) { alert('必须包含技术负责人和部门负责人'); return; }
+
+  d.approvers = approvers;
+  d.approvalConclusion = '';
   closeModal();
   navTo('commission');
-  alert('已提交审批！委托编号：' + data.id);
+  renderNav();
+  alert('已提交审批！委托编号：' + d.id + '\n已向 ' + approvers.map(function(a) { return a.name; }).join('、') + ' 发送审批工单');
 }
 
 function collectCommissionForm(editId) {
@@ -1702,6 +1786,154 @@ function deleteCommission(id) {
   DELEGATES = DELEGATES.filter(function(x) { return x.id !== id; });
   if (cid) updateContractDelegateCount(cid);
   navTo('commission');
+}
+
+// ============================================================
+// 1.3 委托审批 - 审批工单
+// ============================================================
+function fillApprovalWorkOrder(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  if (!d) return;
+  var av = d.approvers.filter(function(a) { return a.name === LOGIN_USER; })[0];
+  if (!av) { alert('您不是该委托的审批人'); return; }
+
+  var infoHtml = '<table class="ws-info-table">' +
+    '<tr><td colspan="2" class="ws-section">委托信息</td></tr>' +
+    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
+    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
+    '<tr><td>联系人</td><td>' + d.contact + '</td></tr>' +
+    '<tr><td>联系方式</td><td>' + d.phone + '</td></tr>' +
+    '<tr><td>委托方地址</td><td>' + (d.address || '-') + '</td></tr>' +
+    '<tr><td colspan="2" class="ws-section">检测信息</td></tr>' +
+    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
+    '<tr><td>检测内容</td><td>' + (d.testContent || '-') + '</td></tr>' +
+    '<tr><td>检测领域</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td></tr>' +
+    '<tr><td>检测依据</td><td>' + (d.standards || '-') + '</td></tr>' +
+    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
+    '<tr><td>特殊要求</td><td>' + (d.specialReq || '无') + '</td></tr>' +
+    '</table>';
+
+  var formHtml = makeForm([
+    { l: '审批意见', h: '<textarea id="apv_comment" rows="3" placeholder="可选填写审批意见">' + (av.comment || '') + '</textarea>' },
+    { l: '审批结论', r: 1, h: makeSelect('apv_conclusion', ['通过', '不通过'], av.result || '通过') }
+  ]);
+  var footer = '<button class="btn btn-primary" onclick="submitApprovalItem(\'' + delegateId + '\')">保存</button>';
+  showModal('委托审批 — ' + LOGIN_USER, '<div class="ws-layout"><div class="ws-left">' + infoHtml + '</div><div class="ws-right">' + formHtml + '</div></div>', footer);
+}
+
+function submitApprovalItem(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  var av = d.approvers.filter(function(a) { return a.name === LOGIN_USER; })[0];
+  av.result = document.getElementById('apv_conclusion').value;
+  av.comment = document.getElementById('apv_comment').value.trim();
+  closeModal();
+  renderNav();
+  alert('审批工单已保存！');
+}
+
+function viewApprovalWorkOrder(delegateId) {
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  if (!d) return;
+
+  var infoHtml = '<table class="ws-info-table">' +
+    '<tr><td colspan="2" class="ws-section">委托信息</td></tr>' +
+    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
+    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
+    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
+    '<tr><td>检测领域</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td></tr>' +
+    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
+    '</table>';
+
+  var approverRows = d.approvers.map(function(av) {
+    var filled = av.result ? true : false;
+    return '<tr><td>' + av.name + '</td><td>' + av.role + '</td>' +
+      '<td>' + (filled ? statusTag(av.result) : '<span style="color:#999">未填写</span>') + '</td>' +
+      '<td>' + (av.comment || '-') + '</td></tr>';
+  }).join('');
+
+  var rightHtml = '<div><b style="font-size:14px">审批进度</b>' +
+    '<table style="margin-top:8px"><thead><tr><th>审批人</th><th>角色</th><th>结论</th><th>意见</th></tr></thead><tbody>' +
+    approverRows + '</tbody></table></div>';
+
+  var allFilled = d.approvers.every(function(av) { return !!av.result; });
+  var footer = '';
+  if (allFilled && d.status === '审批中') {
+    footer = '<button class="btn btn-warning" onclick="finalizeApproval(\'' + delegateId + '\')">汇总审批结论</button>';
+  }
+
+  showModal('委托审批工单 - ' + d.id, '<div class="ws-layout"><div class="ws-left">' + infoHtml + '</div><div class="ws-right">' + rightHtml + '</div></div>', footer);
+}
+
+function finalizeApproval(delegateId) {
+  if (LOGIN_USER !== '张工') { alert('仅质量负责人可汇总审批结论'); return; }
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  var unfilled = d.approvers.filter(function(av) { return !av.result; });
+  if (unfilled.length > 0) {
+    alert('以下审批人尚未填写：' + unfilled.map(function(av) { return av.name; }).join('、'));
+    return;
+  }
+  var allPass = d.approvers.every(function(av) { return av.result === '通过'; });
+  d.approvalConclusion = allPass ? '通过' : '不通过';
+  d.status = allPass ? '已通过' : '已退回';
+  closeModal();
+  renderNav();
+  if (allPass) {
+    alert('全员通过！委托审批已通过，通知创建人新建检测任务。');
+  } else {
+    var failNames = d.approvers.filter(function(av) { return av.result === '不通过'; }).map(function(av) { return av.name; }).join('、');
+    alert('审批不通过！不通过人员：' + failNames + '。委托已退回。');
+  }
+  navTo('approval');
+}
+
+// ============================================================
+// 1.4 委托审批 - 列表页
+// ============================================================
+function pageApproval() {
+  // 模拟筛选数据
+  var list = DELEGATES.slice();
+
+  var rows = list.map(function(d) {
+    var domainLabels = d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、');
+    var c = CONTRACTS.filter(function(x) { return x.id === d.contractId; })[0];
+    var contractDisplay = c ? c.id : '独立委托';
+
+    var approverInfo = '';
+    if (d.approvers && d.approvers.length > 0) {
+      approverInfo = d.approvers.map(function(av) {
+        return av.name + (av.result ? '(' + av.result + ')' : '(待填写)');
+      }).join('、');
+    } else {
+      approverInfo = '-';
+    }
+
+    var ops = '';
+    if (d.status === '审批中') {
+      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看审批进度</button>';
+    } else if (d.status === '已通过' || d.status === '已退回') {
+      ops = '<button class="btn btn-default btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看详情</button>';
+    }
+
+    return '<tr>' +
+      '<td>' + d.id + '</td><td>' + d.client + '</td><td>' + contractDisplay + '</td>' +
+      '<td>' + domainLabels + '</td>' +
+      '<td>' + (d.approvalConclusion ? statusTag(d.approvalConclusion) : statusTag('审批中')) + '</td>' +
+      '<td>' + approverInfo + '</td>' +
+      '<td>' + (d.createDate || '-') + '</td>' +
+      '<td>' + ops + '</td></tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-title">委托审批列表</div>' +
+    '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<input placeholder="委托编号" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:200px">' +
+      '<input placeholder="委托方名称" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
+      '<select style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">审批结论-全部</option><option value="通过">通过</option><option value="不通过">不通过</option></select>' +
+      '<button class="btn btn-primary" style="padding:6px 14px">🔍 查询</button>' +
+      '<span style="margin-left:auto;color:#666;font-size:13px">共 <b>' + list.length + '</b> 条</span>' +
+    '</div>' +
+    '<table><thead><tr>' +
+    '<th>委托编号</th><th>委托方名称</th><th>关联合同</th><th>检测领域</th><th>审批结论</th><th>审批人</th><th>创建时间</th><th>操作</th>' +
+    '</tr></thead><tbody>' + (list.length ? rows : '<tr><td colspan="8" style="text-align:center;color:#999;padding:30px">暂无审批记录</td></tr>') + '</tbody></table></div>';
 }
 
 // ============================================================
