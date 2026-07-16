@@ -1153,12 +1153,12 @@ function pageContract() {
   if (toFilter) { list = list.filter(function(c) { return c.signDate <= toFilter; }); }
 
   var rows = list.map(function(c) {
-    var btns = '';
+    var btns = '<button class="btn btn-default btn-sm" onclick="viewContract(\'' + c.id + '\')">查看</button> ';
     if (c.status === '草稿') {
-      btns = '<button class="btn btn-primary btn-sm" onclick="editContract(\'' + c.id + '\')">编辑</button> ' +
-             '<button class="btn btn-sm" style="background:#52c41a;color:#fff" onclick="signContract(\'' + c.id + '\')">签订生效</button>';
+      btns += '<button class="btn btn-primary btn-sm" onclick="editContract(\'' + c.id + '\')">编辑</button> ' +
+              '<button class="btn btn-sm" style="background:#52c41a;color:#fff" onclick="signContract(\'' + c.id + '\')">签订生效</button>';
     } else if (c.status === '进行中' || c.status === '已完成') {
-      btns = '<button class="btn btn-sm" style="background:#ff4d4f;color:#fff" onclick="terminateContract(\'' + c.id + '\')">终止</button>';
+      btns += '<button class="btn btn-sm" style="background:#ff4d4f;color:#fff" onclick="terminateContract(\'' + c.id + '\')">终止</button>';
     }
     return '<tr>' +
       '<td>' + c.id + '</td><td>' + c.name + '</td><td>' + c.client + '</td>' +
@@ -1334,6 +1334,27 @@ function terminateContract(cid) {
   c.status = '已终止';
   navTo('contract');
   alert('合同 ' + c.id + ' 已终止');
+}
+
+function viewContract(cid) {
+  var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
+  if (!c) return;
+
+  var rows = '<tr><td width="120"><b>合同编号</b></td><td>' + c.id + '</td></tr>' +
+    '<tr><td><b>合同名称</b></td><td>' + c.name + '</td></tr>' +
+    '<tr><td><b>客户名称</b></td><td>' + c.client + '</td></tr>' +
+    '<tr><td><b>关联评审</b></td><td>' + c.reviewId + ' | ' + c.reviewProj + '</td></tr>' +
+    '<tr><td><b>合同金额</b></td><td>' + (c.amount ? c.amount.toLocaleString() + ' 元' : '-') + '</td></tr>' +
+    '<tr><td><b>签订日期</b></td><td>' + (c.signDate || '-') + '</td></tr>' +
+    '<tr><td><b>服务期限</b></td><td>' + (c.servicePeriod || '-') + '</td></tr>' +
+    '<tr><td><b>合同条款摘要</b></td><td>' + (c.summary || '-') + '</td></tr>' +
+    '<tr><td><b>合同状态</b></td><td>' + statusTag(c.status) + '</td></tr>' +
+    '<tr><td><b>关联委托数</b></td><td>' + c.delegateCount + '</td></tr>';
+
+  showModal('合同详情 - ' + c.id,
+    '<table class="ws-form-table">' + rows + '</table>',
+    '<button class="btn btn-default" onclick="closeModal()">关闭</button>'
+  );
 }
 // ============================================================
 renderNav();
