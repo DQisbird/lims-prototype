@@ -370,6 +370,55 @@ var DELEGATES = [
 ];
 var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过': 'green', '不通过': 'red' };
 
+
+// ============================================================
+// 检测任务数据
+// ============================================================
+var STAGES = [
+  '样品接收', '任务派工',
+  '测试方案', '方案评审', '用户确认方案', '测试配置及环境确认',
+  '测试记录', '测试记录评审',
+  '回归测试记录', '回归测试问题报告评审',
+  '检测报告', '检测报告评审', '用印审批', '出具报告',
+  '归档', '客户满意度调查'
+];
+var STAGE_PHASE = {
+  '样品接收': 'A', '任务派工': 'A',
+  '测试方案': 'B', '方案评审': 'B', '用户确认方案': 'B', '测试配置及环境确认': 'B',
+  '测试记录': 'C', '测试记录评审': 'C',
+  '回归测试记录': 'D', '回归测试问题报告评审': 'D',
+  '检测报告': 'E', '检测报告评审': 'E', '用印审批': 'E', '出具报告': 'E',
+  '归档': 'F', '客户满意度调查': 'F'
+};
+
+var TASKS = [
+  { id: 'TZJC/JSJL-RJ2025-12-02', delegateId: 'TZJC/JSJL-2026-06-15.WTSQ-1', reviewId: 'TZJC/JSJL-2025-12-01.HTPS-1', client: '深圳教育局', proj: '智慧校园管理系统V3.0.2', domain: 'RJ', obj: '智慧校园管理系统V3.0.2软件系统', currentStage: '测试记录评审', status: '进行中', inspector: '王工', reviewer: '赵工', planStart: '2025-12-03', planEnd: '2026-06-01', createDate: '2025-12-02', stageHistory: [{ stage:'样品接收',date:'2025-12-03',operator:'孙工'},{ stage:'任务派工',date:'2025-12-03',operator:'张工',inspector:'王工',reviewer:'赵工'},{ stage:'测试方案',date:'2025-12-04',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.CSFA V1.0'},{ stage:'方案评审',date:'2025-12-05',operator:'赵工',result:'通过'},{ stage:'用户确认方案',date:'2025-12-08',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.FAQR V1.0'},{ stage:'测试配置及环境确认',date:'2025-12-10',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.CSPZ V1.0'},{ stage:'测试记录',date:'2025-12-20',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.CSSM V1.0',hasIssue:false}] },
+  { id: 'TZJC/JSJL-YJ2025-12-06', delegateId: 'TZJC/JSJL-2026-06-10.WTSQ-1', reviewId: 'TZJC/JSJL-2025-12-05.FAPS-1', client: '北京消防科技公司', proj: '消防报警控制器V2.1', domain: 'YJ', obj: '消防报警控制器JB-QB', currentStage: '方案评审', status: '进行中', inspector: '', reviewer: '', planStart: '2025-12-08', planEnd: '2026-03-01', createDate: '2025-12-06', stageHistory: [{ stage:'样品接收',date:'2025-12-07',operator:'孙工'},{ stage:'任务派工',date:'2025-12-08',operator:'张工',inspector:'李工',reviewer:'赵工'},{ stage:'测试方案',date:'2025-12-10',operator:'李工',file:'TZJC/JSJL-YJ2025-12-06.CSFA V1.0'}] },
+  { id: 'TZJC/JSJL-RJ2026-07-16', delegateId: 'TZJC/JSJL-2026-07-01.WTSQ-1', reviewId: 'TZJC/JSJL-2026-07-15.HTPS-1', client: '国家电网华东分部', proj: '智能电网调度控制系统', domain: 'RJ', obj: '智能电网调度控制系统D5000', currentStage: '样品接收', status: '进行中', inspector: '', reviewer: '', planStart: '2026-07-20', planEnd: '2027-01-20', createDate: '2026-07-16', stageHistory: [] },
+  { id: 'TZJC/JSJL-RJ2026-07-16-01', delegateId: null, reviewId: 'TZJC/JSJL-2026-07-15.HTPS-2', client: '隆基绿能科技股份有限公司', proj: '光伏电站智能运维平台', domain: 'RJ', obj: '光伏电站智能运维平台V2.0', currentStage: '检测报告', status: '进行中', inspector: '王工', reviewer: '赵工', planStart: '2026-07-17', planEnd: '2026-11-01', createDate: '2026-07-16', stageHistory: [{ stage:'样品接收',date:'2026-07-17',operator:'孙工'},{ stage:'任务派工',date:'2026-07-17',operator:'张工',inspector:'王工',reviewer:'赵工'},{ stage:'测试方案',date:'2026-07-18',operator:'王工',file:'TZJC/JSJL-RJ2026-07-16-01.CSFA V1.0'},{ stage:'方案评审',date:'2026-07-19',operator:'赵工',result:'通过'},{ stage:'用户确认方案',date:'2026-07-22',operator:'王工',file:'TZJC/JSJL-RJ2026-07-16-01.FAQR V1.0'},{ stage:'测试配置及环境确认',date:'2026-07-25',operator:'王工',file:'TZJC/JSJL-RJ2026-07-16-01.CSPZ V1.0'},{ stage:'测试记录',date:'2026-08-10',operator:'王工',file:'TZJC/JSJL-RJ2026-07-16-01.CSSM V1.0',hasIssue:false},{ stage:'测试记录评审',date:'2026-08-12',operator:'赵工',result:'通过'}] },
+  { id: 'TZJC/JSJL-RJ2026-07-16-02', delegateId: null, reviewId: 'TZJC/JSJL-2026-07-15.HTPS-1', client: '阳光新能源科技有限公司', proj: '光伏运维监控系统', domain: 'RJ', obj: '光伏运维监控系统V1.0', currentStage: '归档', status: '已完成', inspector: '李工', reviewer: '赵工', planStart: '2026-07-17', planEnd: '2026-10-01', createDate: '2026-07-16', stageHistory: [{ stage:'样品接收',date:'2026-07-17',operator:'孙工'},{ stage:'任务派工',date:'2026-07-17',operator:'张工',inspector:'李工',reviewer:'赵工'},{ stage:'测试方案',date:'2026-07-18',operator:'李工',file:'TZJC/JSJL-RJ2026-07-16-02.CSFA V1.0'},{ stage:'方案评审',date:'2026-07-19',operator:'赵工',result:'通过'},{ stage:'用户确认方案',date:'2026-07-22',operator:'李工',file:'TZJC/JSJL-RJ2026-07-16-02.FAQR V1.0'},{ stage:'测试配置及环境确认',date:'2026-07-25',operator:'李工',file:'TZJC/JSJL-RJ2026-07-16-02.CSPZ V1.0'},{ stage:'测试记录',date:'2026-08-01',operator:'李工',file:'TZJC/JSJL-RJ2026-07-16-02.CSSM V1.0',hasIssue:false},{ stage:'测试记录评审',date:'2026-08-03',operator:'赵工',result:'通过'},{ stage:'检测报告',date:'2026-08-05',operator:'李工',file:'TZJC/JSJL-RJ2026-07-16-02.JCBG V1.0'},{ stage:'检测报告评审',date:'2026-08-08',operator:'赵工',result:'通过'},{ stage:'用印审批',date:'2026-08-10',operator:'张工',result:'通过'},{ stage:'出具报告',date:'2026-08-12',operator:'李工',file:'TZJC/JSJL-RJ2026-07-16-02.JCBG V1.0'},{ stage:'归档',date:'2026-08-15',operator:'张工'}] }
+];
+
+var FILES_CFG = [];
+TASKS.forEach(function(t) {
+  t.stageHistory.forEach(function(h) {
+    if (h.file) {
+      var ver = 'V1.0';
+      var vm = h.file.match(/V(\d+\.\d+)$/);
+      if (vm) ver = 'V' + vm[1];
+      FILES_CFG.push({ id:h.file, name:t.proj+' - '+h.stage+'文件', taskId:t.id, stage:h.stage, version:ver, versionStatus:'定稿', finalDate:h.date, confirmBy:'张工' });
+    }
+  });
+});
+
+var SUPERVISIONS = [
+  { id:'TZJC/JLJD-2025-12-04', taskId:'TZJC/JSJL-RJ2025-12-02', stage:'测试方案', inspector:'张工', status:'已监督', date:'2025-12-04', content:'检查测试方案编制是否符合GB/T 25000.51要求', hasIssue:false, problemDesc:'', suggestion:'', conclusion:'合格', rectification:'' },
+  { id:'TZJC/JLJD-2025-12-21', taskId:'TZJC/JSJL-RJ2025-12-02', stage:'测试记录', inspector:'张工', status:'需整改', date:'2025-12-21', content:'检查测试记录填写完整性和规范性', hasIssue:true, problemDesc:'测试记录缺少操作人员签字确认，部分测试用例执行结果未填写完整', suggestion:'请王工补充签字并完善未完成的测试用例结果', conclusion:'需整改', rectification:'' },
+  { id:'TZJC/JLJD-2025-12-11', taskId:'TZJC/JSJL-YJ2025-12-06', stage:'测试方案', inspector:'张工', status:'待监督', date:'2025-12-11', content:'', hasIssue:false, problemDesc:'', suggestion:'', conclusion:'', rectification:'' },
+  { id:'TZJC/JLJD-2026-08-11', taskId:'TZJC/JSJL-RJ2026-07-16-01', stage:'测试记录评审', inspector:'张工', status:'已监督', date:'2026-08-11', content:'检查评审流程合规性和评审意见记录完整性', hasIssue:false, problemDesc:'', suggestion:'', conclusion:'合格', rectification:'' },
+  { id:'TZJC/JLJD-2026-08-06', taskId:'TZJC/JSJL-RJ2026-07-16-02', stage:'检测报告', inspector:'张工', status:'已监督', date:'2026-08-06', content:'检查检测报告格式规范性、数据准确性', hasIssue:false, problemDesc:'', suggestion:'', conclusion:'合格', rectification:'' }
+];
+
 // ============================================================
 // 导航
 // ============================================================
@@ -581,6 +630,9 @@ function renderPage() {
     case 'commission': c.innerHTML = pageCommission(); break;
     case 'todo': c.innerHTML = pageTodo(); break;
     case 'done': c.innerHTML = pageDone(); break;
+    case 'task': c.innerHTML = pageTask(); break;
+    case 'filemgmt': c.innerHTML = pageFilemgmt(); break;
+    case 'supervision': c.innerHTML = pageSupervision(); break;
     default: c.innerHTML = pagePlaceholder(TITLES[curPage] || curPage); break;
   }
 }
@@ -2127,6 +2179,392 @@ function pageApproval() {
     '<table><thead><tr>' +
     '<th>委托编号</th><th>委托方名称</th><th>关联合同</th><th>检测领域</th><th>审批结论</th><th>审批人</th><th>创建时间</th><th>操作</th>' +
     '</tr></thead><tbody>' + (list.length ? rows : '<tr><td colspan="8" style="text-align:center;color:#999;padding:30px">暂无审批记录</td></tr>') + '</tbody></table></div>';
+}
+
+// ============================================================
+// 任务列表页面 (2.1)
+// ============================================================
+function pageTask() {
+  var filterId = '', filterClient = '', filterDomain = '', filterStage = '', filterStatus = '', filterInspector = '';
+  var filtered = TASKS.slice();
+  
+  function doFilter() {
+    filterId = (document.getElementById('task_filter_id')||{}).value || '';
+    filterClient = (document.getElementById('task_filter_client')||{}).value || '';
+    filterDomain = (document.getElementById('task_filter_domain')||{}).value || '';
+    filterStage = (document.getElementById('task_filter_stage')||{}).value || '';
+    filterStatus = (document.getElementById('task_filter_status')||{}).value || '';
+    filterInspector = (document.getElementById('task_filter_inspector')||{}).value || '';
+    filtered = TASKS.filter(function(t) {
+      if (filterId && t.id.indexOf(filterId) === -1) return false;
+      if (filterClient && t.client.indexOf(filterClient) === -1) return false;
+      if (filterDomain && t.domain !== filterDomain) return false;
+      if (filterStage && t.currentStage !== filterStage) return false;
+      if (filterStatus && t.status !== filterStatus) return false;
+      if (filterInspector && (t.inspector||'待分配').indexOf(filterInspector) === -1) return false;
+      return true;
+    });
+    refreshTaskTable();
+  }
+  
+  function refreshTaskTable() {
+    var rows = filtered.map(function(t) {
+      var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
+      var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
+      var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
+      if (t.reviewId) {
+        ops += ' <button class="btn btn-default btn-sm" onclick="viewReviewDetail(\'' + t.reviewId + '\')">查看委托</button>';
+      }
+      return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
+        '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
+        '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
+        '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
+    }).join('');
+    var tbody = document.getElementById('task_tbody');
+    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px">无匹配任务</td></tr>';
+  }
+
+  var domainOpts = DOMAINS.map(function(d) { return '<option value="' + d + '">' + DOMAIN_LABELS[d] + '</option>'; }).join('');
+  var stageOpts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+  
+  setTimeout(function() {
+    document.getElementById('task_filter_id').oninput = doFilter;
+    document.getElementById('task_filter_client').oninput = doFilter;
+    document.getElementById('task_filter_domain').onchange = doFilter;
+    document.getElementById('task_filter_stage').onchange = doFilter;
+    document.getElementById('task_filter_status').onchange = doFilter;
+    document.getElementById('task_filter_inspector').oninput = doFilter;
+  }, 10);
+
+  var rows = TASKS.map(function(t) {
+    var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
+    var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
+    var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
+    if (t.reviewId) {
+      ops += ' <button class="btn btn-default btn-sm" onclick="viewReviewDetail(\'' + t.reviewId + '\')">查看委托</button>';
+    }
+    return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
+      '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
+      '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
+      '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-title">检测任务列表</div>' +
+    '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<input id="task_filter_id" placeholder="任务编号" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:200px">' +
+      '<input id="task_filter_client" placeholder="委托方" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:150px">' +
+      '<select id="task_filter_domain" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">检测领域-全部</option>' + domainOpts + '</select>' +
+      '<select id="task_filter_stage" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">当前阶段-全部</option>' + stageOpts + '</select>' +
+      '<select id="task_filter_status" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">任务状态-全部</option><option value="进行中">进行中</option><option value="已完成">已完成</option><option value="已归档">已归档</option></select>' +
+      '<input id="task_filter_inspector" placeholder="主检人" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:120px">' +
+      '<button class="btn btn-primary" onclick="openNewTaskModal()">+ 新建任务</button>' +
+      '<span style="margin-left:auto;color:#666;font-size:13px">共 <b>' + TASKS.length + '</b> 条</span>' +
+    '</div>' +
+    '<table><thead><tr>' +
+    '<th>任务编号</th><th>关联委托</th><th>委托方</th><th>检测领域</th><th>检测对象</th><th>当前阶段</th><th>主检人</th><th>任务状态</th><th>计划完成</th><th>操作</th>' +
+    '</tr></thead><tbody id="task_tbody">' + rows + '</tbody></table></div>';
+}
+
+function viewTaskDetail(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var phaseOrder = ['A','B','C','D','E','F'];
+  var phaseLabels = { A: '前期准备', B: '方案阶段', C: '实施阶段', D: '问题处理', E: '报告阶段', F: '结项' };
+  var curPhase = STAGE_PHASE[t.currentStage] || 'A';
+  var curPhaseIdx = phaseOrder.indexOf(curPhase);
+  
+  var progressHtml = phaseOrder.map(function(p, i) {
+    var cls = '';
+    if (i < curPhaseIdx) cls = 'done';
+    else if (i === curPhaseIdx) cls = 'current';
+    else cls = 'pending';
+    var arrow = i < phaseOrder.length - 1 ? '<span style="margin:0 4px;color:#d9d9d9">→</span>' : '';
+    return '<span class="phase-dot phase-' + cls + '" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:12px;font-size:12px;' +
+      (cls==='done'?'background:#f6ffed;color:#52c41a':'') +
+      (cls==='current'?'background:#e6f7ff;color:#1890ff;font-weight:bold':'') +
+      (cls==='pending'?'background:#fafafa;color:#bbb':'') +
+    '">' + phaseLabels[p] + ' [' + p + ']</span>' + arrow;
+  }).join('');
+  
+  var historyHtml = t.stageHistory.map(function(h) {
+    var extra = '';
+    if (h.inspector) extra += ' | 主检人: ' + h.inspector;
+    if (h.reviewer) extra += ' | 复核人: ' + h.reviewer;
+    if (h.file) extra += ' | 文件: ' + h.file;
+    if (h.result) extra += ' | 结果: ' + h.result;
+    return '<tr><td>' + h.stage + '</td><td>' + h.date + '</td><td>' + h.operator + '</td><td>' + extra.replace(/^\s*\|\s*/, '') + '</td></tr>';
+  }).join('');
+
+  var body = '<div style="margin-bottom:16px"><b>任务基本信息</b></div>' +
+    '<table class="review-items-table"><tr><td>任务编号</td><td>' + t.id + '</td><td>委托方</td><td>' + t.client + '</td></tr>' +
+    '<tr><td>项目名称</td><td>' + t.proj + '</td><td>检测对象</td><td>' + t.obj + '</td></tr>' +
+    '<tr><td>检测领域</td><td>' + (DOMAIN_LABELS[t.domain]||t.domain) + '</td><td>任务状态</td><td>' + statusTag(t.status) + '</td></tr>' +
+    '<tr><td>主检人</td><td>' + (t.inspector||'待分配') + '</td><td>复核人</td><td>' + (t.reviewer||'待分配') + '</td></tr>' +
+    '<tr><td>计划开始</td><td>' + (t.planStart||'-') + '</td><td>计划完成</td><td>' + (t.planEnd||'-') + '</td></tr></table>' +
+    '<div style="margin:16px 0"><b>阶段进度</b></div>' +
+    '<div style="padding:12px;background:#fafafa;border-radius:6px;overflow-x:auto;white-space:nowrap">' + progressHtml + '</div>' +
+    '<div style="margin:16px 0"><b>流转记录</b></div>' +
+    '<table><thead><tr><th>阶段</th><th>日期</th><th>操作人</th><th>详细信息</th></tr></thead><tbody>' + (historyHtml || '<tr><td colspan="4" style="text-align:center;color:#999">暂无流转记录</td></tr>') + '</tbody></table>';
+
+  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
+  var modal = document.getElementById('modalOverlay');
+  var modalEl = modal.querySelector('.modal');
+  modalEl.classList.add('modal-wide');
+}
+
+function openNewTaskModal() {
+  // 获取已通过的评审/委托作为可选关联
+  var approvedReviews = REVIEWS.filter(function(r) { return r.conclusion === '通过' && r.status === 'done'; });
+  var opts = approvedReviews.map(function(r) {
+    return '<option value="' + r.id + '">' + r.proj + ' (' + r.client + ')</option>';
+  }).join('');
+  
+  var body = '<div class="form-group"><label>关联委托</label><div class="form-ctl"><select id="newtask_review" style="width:100%"><option value="">-- 请选择 --</option>' + opts + '</select></div></div>' +
+    '<div class="form-group"><label>任务编号</label><div class="form-ctl"><input id="newtask_id" placeholder="自动生成，支持手动修改"></div></div>' +
+    '<div class="form-group"><label>委托方</label><div class="form-ctl"><input id="newtask_client" readonly style="background:#f5f5f5"></div></div>' +
+    '<div class="form-group"><label>检测对象</label><div class="form-ctl"><input id="newtask_obj" readonly style="background:#f5f5f5"></div></div>' +
+    '<div class="form-group"><label>检测领域</label><div class="form-ctl"><input id="newtask_domain" readonly style="background:#f5f5f5"></div></div>' +
+    '<div class="form-group"><label>计划完成日期</label><div class="form-ctl"><input type="date" id="newtask_planend"></div></div>';
+
+  showModal('新建检测任务', body,
+    '<button class="btn btn-primary" onclick="confirmNewTask()">确认创建</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+  );
+
+  setTimeout(function() {
+    var sel = document.getElementById('newtask_review');
+    sel.onchange = function() {
+      var rid = sel.value;
+      var r = REVIEWS.filter(function(x) { return x.id === rid; })[0];
+      if (r) {
+        var domainLabel = DOMAIN_LABELS[r.domains[0]] || r.domains[0];
+        var now = new Date();
+        var dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        document.getElementById('newtask_id').value = 'TZJC/JSJL-' + r.domains[0] + dateStr;
+        document.getElementById('newtask_client').value = r.client;
+        document.getElementById('newtask_obj').value = r.testContent.substring(0, 40) + '...';
+        document.getElementById('newtask_domain').value = domainLabel;
+      }
+    };
+  }, 10);
+}
+
+function confirmNewTask() {
+  alert('【原型演示】任务创建成功！\n（实际开发中此处会校验编号唯一性并写入数据库）');
+  closeModal();
+}
+
+function viewReviewDetail(reviewId) {
+  var idx = -1;
+  for (var i = 0; i < REVIEWS.length; i++) { if (REVIEWS[i].id === reviewId) { idx = i; break; } }
+  if (idx >= 0) {
+    curPage = 'review';
+    reviewPage = Math.floor(idx / reviewPageSize) + 1;
+    document.getElementById('pageTitle').textContent = TITLES['review'];
+    renderNav();
+    renderPage();
+  }
+}
+// ============================================================
+// 文件配置管理页面 (2.3)
+// ============================================================
+function pageFilemgmt() {
+  var filterName = '', filterFileId = '', filterTask = '', filterStage = '', filterVerStatus = '';
+  var filtered = FILES_CFG.slice();
+  
+  function doFilterF() {
+    filterName = (document.getElementById('file_filter_name')||{}).value || '';
+    filterFileId = (document.getElementById('file_filter_id')||{}).value || '';
+    filterTask = (document.getElementById('file_filter_task')||{}).value || '';
+    filterStage = (document.getElementById('file_filter_stage')||{}).value || '';
+    filterVerStatus = (document.getElementById('file_filter_vstatus')||{}).value || '';
+    filtered = FILES_CFG.filter(function(f) {
+      if (filterName && f.name.indexOf(filterName) === -1) return false;
+      if (filterFileId && f.id.indexOf(filterFileId) === -1) return false;
+      if (filterTask && f.taskId.indexOf(filterTask) === -1) return false;
+      if (filterStage && f.stage !== filterStage) return false;
+      if (filterVerStatus && f.versionStatus !== filterVerStatus) return false;
+      return true;
+    });
+    refreshFileTable();
+  }
+  
+  function refreshFileTable() {
+    var rows = filtered.map(function(f) {
+      return '<tr><td>' + f.name + '</td><td>' + f.id + '</td><td>' + f.taskId + '</td>' +
+        '<td>' + f.stage + '</td><td>' + f.version + '</td><td>' + statusTag(f.versionStatus) + '</td>' +
+        '<td>' + (f.finalDate||'-') + '</td><td>' + (f.confirmBy||'-') + '</td>' +
+        '<td><button class="btn btn-default btn-sm" onclick="alert(\'【原型演示】预览文件：' + f.id + '\')">查看文件</button>' +
+        ' <button class="btn btn-default btn-sm" onclick="alert(\'【原型演示】查看版本历史：' + f.id + '\')">版本历史</button>' +
+        ' <button class="btn btn-warning btn-sm" onclick="alert(\'【原型演示】发起变更流程：' + f.id + '\')">变更</button></td></tr>';
+    }).join('');
+    var tbody = document.getElementById('file_tbody');
+    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:#999;padding:30px">无匹配文件</td></tr>';
+  }
+
+  var stageOpts = ['测试方案','用户确认方案','测试配置及环境确认','测试记录','回归测试记录','检测报告','出具报告'].map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+  
+  setTimeout(function() {
+    var els = ['file_filter_name','file_filter_id','file_filter_task','file_filter_stage','file_filter_vstatus'];
+    els.forEach(function(eid) {
+      var el = document.getElementById(eid);
+      if (el) { el.oninput = doFilterF; el.onchange = doFilterF; }
+    });
+  }, 10);
+
+  var rows = FILES_CFG.map(function(f) {
+    return '<tr><td>' + f.name + '</td><td>' + f.id + '</td><td>' + f.taskId + '</td>' +
+      '<td>' + f.stage + '</td><td>' + f.version + '</td><td>' + statusTag(f.versionStatus) + '</td>' +
+      '<td>' + (f.finalDate||'-') + '</td><td>' + (f.confirmBy||'-') + '</td>' +
+      '<td><button class="btn btn-default btn-sm" onclick="alert(\'【原型演示】预览文件：' + f.id + '\')">查看文件</button>' +
+      ' <button class="btn btn-default btn-sm" onclick="alert(\'【原型演示】查看版本历史：' + f.id + '\')">版本历史</button>' +
+      ' <button class="btn btn-warning btn-sm" onclick="alert(\'【原型演示】发起变更流程：' + f.id + '\')">变更</button></td></tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-title">文件配置管理</div>' +
+    '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<input id="file_filter_name" placeholder="文件名称" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:180px">' +
+      '<input id="file_filter_id" placeholder="文件编号" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:220px">' +
+      '<input id="file_filter_task" placeholder="所属任务" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:200px">' +
+      '<select id="file_filter_stage" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">所属阶段-全部</option>' + stageOpts + '</select>' +
+      '<select id="file_filter_vstatus" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">版本状态-全部</option><option value="定稿">定稿</option><option value="已变更">已变更</option><option value="已作废">已作废</option></select>' +
+      '<span style="margin-left:auto;color:#666;font-size:13px">共 <b>' + FILES_CFG.length + '</b> 条</span>' +
+    '</div>' +
+    '<table><thead><tr>' +
+    '<th>文件名称</th><th>文件编号</th><th>所属任务</th><th>所属阶段</th><th>当前版本</th><th>版本状态</th><th>定稿日期</th><th>确认人</th><th>操作</th>' +
+    '</tr></thead><tbody id="file_tbody">' + rows + '</tbody></table>' +
+    '<div style="margin-top:12px;padding:10px;background:#fffbe6;border:1px solid #ffe58f;border-radius:4px;font-size:12px;color:#ad8b00">' +
+    '📋 <b>自动定稿规则：</b>评审通过 → 文件自动定稿 → 生成编号纳入配置管理；定稿文件不可修改，只能通过「变更」产生新版本</div></div>';
+}
+// ============================================================
+// 过程质量监督页面 (2.4)
+// ============================================================
+function pageSupervision() {
+  var filterId = '', filterTask = '', filterStage = '', filterStatus = '', filterDateFrom = '', filterDateTo = '';
+  var filtered = SUPERVISIONS.slice();
+  
+  function doFilterS() {
+    filterId = (document.getElementById('sup_filter_id')||{}).value || '';
+    filterTask = (document.getElementById('sup_filter_task')||{}).value || '';
+    filterStage = (document.getElementById('sup_filter_stage')||{}).value || '';
+    filterStatus = (document.getElementById('sup_filter_status')||{}).value || '';
+    filterDateFrom = (document.getElementById('sup_filter_datefrom')||{}).value || '';
+    filterDateTo = (document.getElementById('sup_filter_dateto')||{}).value || '';
+    filtered = SUPERVISIONS.filter(function(s) {
+      if (filterId && s.id.indexOf(filterId) === -1) return false;
+      if (filterTask && s.taskId.indexOf(filterTask) === -1) return false;
+      if (filterStage && s.stage !== filterStage) return false;
+      if (filterStatus && s.status !== filterStatus) return false;
+      if (filterDateFrom && s.date < filterDateFrom) return false;
+      if (filterDateTo && s.date > filterDateTo) return false;
+      return true;
+    });
+    refreshSupTable();
+  }
+  
+  function refreshSupTable() {
+    var rows = filtered.map(function(s) {
+      var ops = '';
+      if (s.status === '待监督') {
+        ops = '<button class="btn btn-primary btn-sm" onclick="openSupervisionForm(\'' + s.id + '\')">填写监督</button>';
+      } else {
+        ops = '<button class="btn btn-default btn-sm" onclick="openSupervisionForm(\'' + s.id + '\')">查看</button>';
+      }
+      return '<tr><td>' + s.id + '</td><td>' + s.taskId + '</td><td>' + s.stage + '</td>' +
+        '<td>' + s.inspector + '</td><td>' + statusTag(s.status) + '</td>' +
+        '<td>' + (s.date||'-') + '</td><td>' + ops + '</td></tr>';
+    }).join('');
+    var tbody = document.getElementById('sup_tbody');
+    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:#999;padding:30px">无匹配记录</td></tr>';
+  }
+
+  var stageOpts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+  
+  setTimeout(function() {
+    var els = ['sup_filter_id','sup_filter_task','sup_filter_stage','sup_filter_status','sup_filter_datefrom','sup_filter_dateto'];
+    els.forEach(function(eid) {
+      var el = document.getElementById(eid);
+      if (el) { el.oninput = doFilterS; el.onchange = doFilterS; }
+    });
+  }, 10);
+
+  var rows = SUPERVISIONS.map(function(s) {
+    var ops = '';
+    if (s.status === '待监督') {
+      ops = '<button class="btn btn-primary btn-sm" onclick="openSupervisionForm(\'' + s.id + '\')">填写监督</button>';
+    } else {
+      ops = '<button class="btn btn-default btn-sm" onclick="openSupervisionForm(\'' + s.id + '\')">查看</button>';
+    }
+    return '<tr><td>' + s.id + '</td><td>' + s.taskId + '</td><td>' + s.stage + '</td>' +
+      '<td>' + s.inspector + '</td><td>' + statusTag(s.status) + '</td>' +
+      '<td>' + (s.date||'-') + '</td><td>' + ops + '</td></tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-title">过程质量监督</div>' +
+    '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<input id="sup_filter_id" placeholder="工单编号" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:200px">' +
+      '<input id="sup_filter_task" placeholder="任务编号" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:200px">' +
+      '<select id="sup_filter_stage" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">监督阶段-全部</option>' + stageOpts + '</select>' +
+      '<select id="sup_filter_status" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">监督状态-全部</option><option value="待监督">待监督</option><option value="已监督">已监督</option><option value="需整改">需整改</option></select>' +
+      '<input type="date" id="sup_filter_datefrom" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px" title="监督日期从">' +
+      '<input type="date" id="sup_filter_dateto" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px" title="监督日期至">' +
+      '<span style="margin-left:auto;color:#666;font-size:13px">共 <b>' + SUPERVISIONS.length + '</b> 条</span>' +
+    '</div>' +
+    '<table><thead><tr>' +
+    '<th>工单编号</th><th>任务编号</th><th>监督阶段</th><th>监督人</th><th>监督状态</th><th>监督日期</th><th>操作</th>' +
+    '</tr></thead><tbody id="sup_tbody">' + rows + '</tbody></table>' +
+    '<div style="margin-top:12px;padding:10px;background:#e6f7ff;border:1px solid #91d5ff;border-radius:4px;font-size:12px;color:#096dd9">' +
+    '🔔 <b>自动触发规则：</b>每个阶段流转（前进或退回）→ 自动给质量监督员发监督工单，<b>不阻塞流程</b></div></div>';
+}
+
+function openSupervisionForm(supId) {
+  var s = SUPERVISIONS.filter(function(x) { return x.id === supId; })[0];
+  if (!s) return;
+  
+  if (s.status === '待监督') {
+    var body = '<div class="form-group"><label>关联任务</label><div class="form-ctl"><input value="' + s.taskId + '" readonly style="background:#f5f5f5"></div></div>' +
+      '<div class="form-group"><label>监督阶段</label><div class="form-ctl"><input value="' + s.stage + '" readonly style="background:#f5f5f5"></div></div>' +
+      '<div class="form-group"><label>监督日期</label><div class="form-ctl"><input type="date" id="sup_date" value="' + (s.date||'') + '"></div></div>' +
+      '<div class="form-group"><label>监督内容</label><div class="form-ctl"><textarea id="sup_content" rows="3"></textarea></div></div>' +
+      '<div class="form-group"><label>是否发现问题</label><div class="form-ctl"><select id="sup_hasissue"><option value="0">否</option><option value="1">是</option></select></div></div>' +
+      '<div class="form-group" id="sup_problem_row" style="display:none"><label>问题描述</label><div class="form-ctl"><textarea id="sup_problem" rows="2"></textarea></div></div>' +
+      '<div class="form-group"><label>处理建议</label><div class="form-ctl"><textarea id="sup_suggestion" rows="2"></textarea></div></div>' +
+      '<div class="form-group"><label>监督结论</label><div class="form-ctl"><select id="sup_conclusion"><option value="合格">合格</option><option value="需整改">需整改</option></select></div></div>' +
+      '<div class="form-group" id="sup_rectify_row" style="display:none"><label>整改情况</label><div class="form-ctl"><textarea id="sup_rectification" rows="2"></textarea></div></div>';
+    
+    showModal('填写监督 — ' + s.id, body,
+      '<button class="btn btn-primary" onclick="confirmSupervision(\'' + s.id + '\')">提交</button>' +
+      '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+    );
+    
+    setTimeout(function() {
+      document.getElementById('sup_hasissue').onchange = function() {
+        document.getElementById('sup_problem_row').style.display = this.value === '1' ? 'flex' : 'none';
+      };
+      document.getElementById('sup_conclusion').onchange = function() {
+        document.getElementById('sup_rectify_row').style.display = this.value === '需整改' ? 'flex' : 'none';
+      };
+    }, 10);
+  } else {
+    // 查看模式
+    var body = '<table class="review-items-table">' +
+      '<tr><td>工单编号</td><td>' + s.id + '</td><td>任务编号</td><td>' + s.taskId + '</td></tr>' +
+      '<tr><td>监督阶段</td><td>' + s.stage + '</td><td>监督人</td><td>' + s.inspector + '</td></tr>' +
+      '<tr><td>监督状态</td><td>' + statusTag(s.status) + '</td><td>监督日期</td><td>' + (s.date||'-') + '</td></tr>' +
+      '<tr><td>监督内容</td><td colspan="3">' + (s.content||'-') + '</td></tr>' +
+      '<tr><td>是否发现问题</td><td>' + (s.hasIssue ? '是' : '否') + '</td><td>监督结论</td><td>' + (s.conclusion||'-') + '</td></tr>' +
+      (s.hasIssue ? '<tr><td>问题描述</td><td colspan="3">' + (s.problemDesc||'-') + '</td></tr>' : '') +
+      '<tr><td>处理建议</td><td colspan="3">' + (s.suggestion||'-') + '</td></tr>' +
+      (s.conclusion === '需整改' ? '<tr><td>整改情况</td><td colspan="3">' + (s.rectification||'待整改') + '</td></tr>' : '') +
+      '</table>';
+    
+    showModal('监督详情 — ' + s.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
+  }
+}
+
+function confirmSupervision(supId) {
+  alert('【原型演示】监督工单提交成功！\n（实际开发中此处会保存监督数据并更新监督状态）');
+  closeModal();
 }
 
 // ============================================================
