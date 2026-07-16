@@ -84,6 +84,7 @@ tr:hover{background:#fafafa}
 .placeholder-card{background:#fff;border-radius:8px;padding:60px 20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .placeholder-card .ph-icon{font-size:48px;margin-bottom:16px}
 .placeholder-card .ph-text{color:#999;font-size:15px}
+.ws-form-table td:first-child{color:#888;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -706,9 +707,10 @@ function filterDones() {
 // 1.1 合同评审 - 列表页
 // ============================================================
 function reviewActionBtns(r) {
-  if (r.status === 'draft') return '<button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
-  if (r.status === 'pending') return '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
-  var btns = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button> <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
+  var detailBtn = '<button class="btn btn-default btn-sm" onclick="viewReview(\'' + r.id + '\')">查看详情</button>';
+  if (r.status === 'draft') return detailBtn + ' <button class="btn btn-default btn-sm" onclick="showReviewForm(\'' + r.id + '\')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">删除</button>';
+  if (r.status === 'pending') return detailBtn + ' <button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button>';
+  var btns = detailBtn + ' <button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + r.id + '\')">评审工单</button> <button class="btn btn-default btn-sm" onclick="printReview(\'' + r.id + '\')">&#128424; 打印</button>';
   if (r.conclusion === '不通过') btns += ' <button class="btn btn-warning btn-sm" onclick="refireReview(\'' + r.id + '\')">重新发起</button>';
   return btns;
 }
@@ -930,25 +932,29 @@ function submitNewReview(editId) {
 function viewReview(id) {
   var r = REVIEWS.filter(function(x) { return x.id === id; })[0];
   if (!r) return;
-  showModal('评审详情 - ' + id, makeForm([
-    { l: '评审编号', h: '<input value="' + r.id + '" readonly>' },
-    { l: '项目名称', h: '<input value="' + r.proj + '" readonly>' },
-    { l: '客户名称', h: '<input value="' + r.client + '" readonly>' },
-    { l: '联系人', h: '<input value="' + r.contact + '" readonly>' },
-    { l: '联系方式', h: '<input value="' + r.phone + '" readonly>' },
-    { l: '合同类型', h: '<input value="' + r.ctype + '" readonly>' },
-    { l: '拟检测领域', h: '<input value="' + r.domains.join(',') + '" readonly>' },
-    { l: '检测内容', h: '<textarea readonly rows="2">' + r.testContent + '</textarea>' },
-    { l: '检测标准依据', h: '<input value="' + r.standardBasis + '" readonly>' },
-    { l: '合同金额', h: '<input value="¥' + (r.contractAmount || 0).toLocaleString() + '" readonly>' },
-    { l: '交付期', h: '<input value="' + (r.deliveryDate || '-') + '" readonly>' },
-    { l: '交付方式', h: '<input value="' + (r.deliveryMethod || '-') + '" readonly>' },
-    { l: '是否使用标识', h: '<input value="' + (r.useLogo || '否') + '" readonly>' },
-    { l: '其他要求', h: '<textarea readonly rows="2">' + (r.otherRequirements || '') + '</textarea>' },
-    { l: '评审结论', h: '<input value="' + r.conclusion + '" readonly>' },
-    { l: '评审日期', h: '<input value="' + r.date + '" readonly>' },
-    { l: '发起人', h: '<input value="' + r.initiator + '" readonly>' }
-  ]));
+
+  var rows = '<tr><td width="120"><b>评审编号</b></td><td>' + r.id + '</td></tr>' +
+    '<tr><td><b>项目名称</b></td><td>' + r.proj + '</td></tr>' +
+    '<tr><td><b>客户名称</b></td><td>' + r.client + '</td></tr>' +
+    '<tr><td><b>联系人</b></td><td>' + r.contact + '</td></tr>' +
+    '<tr><td><b>联系方式</b></td><td>' + r.phone + '</td></tr>' +
+    '<tr><td><b>合同类型</b></td><td>' + r.ctype + '</td></tr>' +
+    '<tr><td><b>拟检测领域</b></td><td>' + r.domains.join('、') + '</td></tr>' +
+    '<tr><td><b>检测内容</b></td><td>' + r.testContent + '</td></tr>' +
+    '<tr><td><b>检测标准依据</b></td><td>' + r.standardBasis + '</td></tr>' +
+    '<tr><td><b>合同金额</b></td><td>¥' + (r.contractAmount || 0).toLocaleString() + '</td></tr>' +
+    '<tr><td><b>交付期</b></td><td>' + (r.deliveryDate || '-') + '</td></tr>' +
+    '<tr><td><b>交付方式</b></td><td>' + (r.deliveryMethod || '-') + '</td></tr>' +
+    '<tr><td><b>是否使用标识</b></td><td>' + (r.useLogo || '否') + '</td></tr>' +
+    '<tr><td><b>其他要求</b></td><td>' + (r.otherRequirements || '无') + '</td></tr>' +
+    '<tr><td><b>评审结论</b></td><td>' + statusTag(r.conclusion) + '</td></tr>' +
+    '<tr><td><b>评审日期</b></td><td>' + r.date + '</td></tr>' +
+    '<tr><td><b>发起人</b></td><td>' + r.initiator + '</td></tr>';
+
+  showModal('评审详情 - ' + id,
+    '<table class="ws-form-table">' + rows + '</table>',
+    '<button class="btn btn-default" onclick="closeModal()">关闭</button>'
+  );
 }
 
 // ============================================================
@@ -988,6 +994,32 @@ function reviewDetailTable(r) {
     '<tr><td>评审结论</td><td>' + statusTag(r.conclusion) + '</td></tr>' +
     '<tr><td>评审日期</td><td>' + r.date + '</td></tr>' +
     '<tr><td>发起人</td><td>' + r.initiator + '</td></tr>' +
+    '</table>';
+}
+
+function delegateDetailTable(d) {
+  var c = CONTRACTS.filter(function(x) { return x.id === d.contractId; })[0];
+  var domainLabels = d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、');
+  return '<table class="ws-info-table">' +
+    '<tr><td colspan="2" class="ws-section">基本信息</td></tr>' +
+    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
+    '<tr><td>关联合同</td><td>' + (c ? c.id + ' | ' + c.name : '独立委托（无关联合同）') + '</td></tr>' +
+    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
+    '<tr><td>联系人</td><td>' + (d.contact || '-') + '</td></tr>' +
+    '<tr><td>联系方式</td><td>' + (d.phone || '-') + '</td></tr>' +
+    '<tr><td>委托方地址</td><td>' + (d.address || '-') + '</td></tr>' +
+    '<tr><td colspan="2" class="ws-section">检测信息</td></tr>' +
+    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
+    '<tr><td>检测内容</td><td>' + (d.testContent || '-') + '</td></tr>' +
+    '<tr><td>检测领域</td><td>' + domainLabels + '</td></tr>' +
+    '<tr><td>检测依据</td><td>' + (d.standards || '-') + '</td></tr>' +
+    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
+    '<tr><td>特殊要求</td><td>' + (d.specialReq || '无') + '</td></tr>' +
+    '<tr><td colspan="2" class="ws-section">委托状态</td></tr>' +
+    '<tr><td>委托状态</td><td>' + statusTag(d.status) + '</td></tr>' +
+    '<tr><td>创建人</td><td>' + (d.creator || '-') + '</td></tr>' +
+    '<tr><td>创建日期</td><td>' + (d.createDate || '-') + '</td></tr>' +
+    '<tr><td>审批结论</td><td>' + (d.approvalConclusion ? statusTag(d.approvalConclusion) : '<span style="color:#999">-</span>') + '</td></tr>' +
     '</table>';
 }
 
@@ -1229,7 +1261,7 @@ function pageContract() {
   if (toFilter) { list = list.filter(function(c) { return c.signDate <= toFilter; }); }
 
   var rows = list.map(function(c) {
-    var btns = '<button class="btn btn-default btn-sm" onclick="viewContract(\'' + c.id + '\')">查看</button> ';
+    var btns = '<button class="btn btn-default btn-sm" onclick="viewContract(\'' + c.id + '\')">查看详情</button> ';
     if (c.status === '草稿') {
       btns += '<button class="btn btn-primary btn-sm" onclick="editContract(\'' + c.id + '\')">编辑</button> ' +
               '<button class="btn btn-sm" style="background:#52c41a;color:#fff" onclick="signContract(\'' + c.id + '\')">签订生效</button>';
@@ -1495,7 +1527,7 @@ function renderCommissionList() {
             '<button class="btn btn-success btn-sm" onclick="submitCommission(\'' + d.id + '\')">提交审批</button> ' +
             '<button class="btn btn-danger btn-sm" onclick="deleteCommission(\'' + d.id + '\')">删除</button> ' + detailBtn;
     } else if (d.status === '审批中') {
-      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看审批进度</button> ' + detailBtn;
+      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看审批进度</button> ' + detailBtn;
     } else if (d.status === '已通过') {
       ops = '<span style="color:#52c41a;font-size:12px">✓已通过</span> ' + detailBtn;
     } else if (d.status === '已退回') {
@@ -1832,42 +1864,26 @@ function viewCommissionDetail(delegateId) {
 function viewApprovalWorksheet(delegateId) {
   var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
   if (!d) return;
+  document.querySelector('.modal').classList.add('modal-wide');
 
-  var infoHtml = '<table class="ws-info-table">' +
-    '<tr><td colspan="2" class="ws-section">委托信息</td></tr>' +
-    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
-    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
-    '<tr><td>联系人</td><td>' + (d.contact || '-') + '</td></tr>' +
-    '<tr><td>联系方式</td><td>' + (d.phone || '-') + '</td></tr>' +
-    '<tr><td>委托方地址</td><td>' + (d.address || '-') + '</td></tr>' +
-    '<tr><td colspan="2" class="ws-section">检测信息</td></tr>' +
-    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
-    '<tr><td>检测内容</td><td>' + (d.testContent || '-') + '</td></tr>' +
-    '<tr><td>检测领域</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td></tr>' +
-    '<tr><td>检测依据</td><td>' + (d.standards || '-') + '</td></tr>' +
-    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
-    '<tr><td>特殊要求</td><td>' + (d.specialReq || '无') + '</td></tr>' +
-    '</table>';
+  var leftHtml = '<div class="ws-left">' + delegateDetailTable(d) + '</div>';
+  var rightHtml;
 
   if (d.status === '已通过' || d.status === '已退回') {
-    // 已完成：展示各审批人明细
+    // 已完成：展示各审批人明细（对齐合同评审样式）
     var tables = d.approvers.map(function(av) {
-      var itemRows = '';
-      if (av.items) {
-        itemRows = ITEM_KEYS.map(function(k) {
-          return '<tr><td>' + ITEM_LABELS[k] + '</td><td>' + (av.items[k] || '-') + '</td></tr>';
-        }).join('');
-      }
+      var rows = ITEM_KEYS.map(function(k) {
+        return '<tr><td>' + ITEM_LABELS[k] + '</td><td>' + ((av.items && av.items[k]) || '-') + '</td></tr>';
+      }).join('');
       return '<div style="margin-bottom:12px;border:1px solid #f0f0f0;border-radius:6px;overflow:hidden">' +
         '<div style="padding:6px 10px;background:#fafafa;font-weight:bold;font-size:13px">' + av.name + '（' + av.role + '）— ' + statusTag(av.result || '未填写') +
         (av.comment ? ' <span style="color:#999;font-weight:normal;font-size:11px">' + av.comment + '</span>' : '') + '</div>' +
-        (itemRows ? '<table class="review-items-table">' + itemRows + '</table>' : '') + '</div>';
+        '<table class="review-items-table">' + rows + '</table></div>';
     }).join('');
-    var rightHtml = '<div class="ws-right"><div class="ws-right-title">审批明细（已' + d.status + '）</div>' + tables + '</div>';
-    showModal('委托审批工单 - ' + d.id, '<div class="ws-layout"><div class="ws-left">' + infoHtml + rightHtml + '</div>');
+    rightHtml = '<div class="ws-right"><div class="ws-right-title">审批明细（已完成）</div>' + tables + '</div>';
   } else {
-    // 审批中：展示各审批人填写进度
-    var approverRows = d.approvers.map(function(av) {
+    // 审批中：展示各审批人填写进度（对齐合同评审样式）
+    var rows = d.approvers.map(function(av) {
       var filled = av.result ? true : false;
       var isMe = av.name === LOGIN_USER;
       var btnHtml = isMe
@@ -1878,12 +1894,14 @@ function viewApprovalWorksheet(delegateId) {
         '<td>' + btnHtml + '</td></tr>';
     }).join('');
     var allFilled = d.approvers.every(function(av) { return !!av.result; });
-    var rightHtml = '<div class="ws-right"><div class="ws-right-title">审批人填写进度</div>' +
-      '<table><thead><tr><th>审批人</th><th>角色</th><th>结论</th><th>操作</th></tr></thead><tbody>' + approverRows + '</tbody></table>' +
+    rightHtml = '<div class="ws-right"><div class="ws-right-title">审批人填写进度</div>' +
+      '<table><thead><tr><th>审批人</th><th>角色</th><th>结论</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table>' +
       (allFilled ? '<div style="margin-top:16px;text-align:center"><button class="btn btn-warning" onclick="finalizeApproval(\'' + delegateId + '\')">汇总审批结论</button></div>' : '') +
       '</div>';
-    showModal('委托审批工单 - ' + d.id, '<div class="ws-layout"><div class="ws-left">' + infoHtml + rightHtml + '</div>');
   }
+
+  showModal('委托审批工单 - ' + d.id, '<div class="ws-layout">' + leftHtml + rightHtml + '</div>');
+  setTimeout(function() { document.querySelector('.modal').classList.remove('modal-wide'); }, 100);
 }
 
 // ============================================================
@@ -1893,34 +1911,23 @@ function fillApprovalWorkOrder(delegateId) {
   var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
   if (!d) return;
   var av = d.approvers.filter(function(a) { return a.name === LOGIN_USER; })[0];
-  if (!av) { alert('您不是该委托的审批人'); return; }
-
-  var infoHtml = '<table class="ws-info-table">' +
-    '<tr><td colspan="2" class="ws-section">委托信息</td></tr>' +
-    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
-    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
-    '<tr><td>联系人</td><td>' + d.contact + '</td></tr>' +
-    '<tr><td>联系方式</td><td>' + d.phone + '</td></tr>' +
-    '<tr><td>委托方地址</td><td>' + (d.address || '-') + '</td></tr>' +
-    '<tr><td colspan="2" class="ws-section">检测信息</td></tr>' +
-    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
-    '<tr><td>检测内容</td><td>' + (d.testContent || '-') + '</td></tr>' +
-    '<tr><td>检测领域</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td></tr>' +
-    '<tr><td>检测依据</td><td>' + (d.standards || '-') + '</td></tr>' +
-    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
-    '<tr><td>特殊要求</td><td>' + (d.specialReq || '无') + '</td></tr>' +
-    '</table>';
+  if (!av) { alert('您不是该委托的审批人'); return }
+  document.querySelector('.modal').classList.add('modal-wide');
 
   var itemFields = ITEM_KEYS.map(function(k) {
     return { l: ITEM_LABELS[k], r: 1, h: makeSelect('apv_' + k, ['是', '否'], (av.items && av.items[k]) || '') };
   });
 
+  var leftHtml = '<div class="ws-left">' + delegateDetailTable(d) + '</div>';
   var formHtml = makeForm(itemFields.concat([
-    { l: '审批意见', h: '<textarea id="apv_comment" rows="3" placeholder="可选填写审批意见">' + (av.comment || '') + '</textarea>' },
-    { l: '审批结论', r: 1, h: makeSelect('apv_conclusion', ['通过', '不通过'], av.result || '通过') }
+    { l: '审批结论', r: 1, h: makeSelect('apv_conclusion', ['通过', '不通过'], av.result || '') },
+    { l: '不通过原因', h: '<textarea id="apv_comment" rows="2" placeholder="不通过时请填写原因">' + (av.comment || '') + '</textarea>' }
   ]));
+  var rightHtml = '<div class="ws-right"><div class="ws-right-title">填写审批 — ' + av.name + '（' + av.role + '）</div>' + formHtml + '</div>';
+
   var footer = '<button class="btn btn-primary" onclick="submitApprovalItem(\'' + delegateId + '\')">保存</button>';
-  showModal('委托审批 — ' + LOGIN_USER + '（' + (PERSONNEL.filter(function(p){return p.name===LOGIN_USER;})[0]||{}).role + '）', '<div class="ws-layout"><div class="ws-left">' + infoHtml + '</div><div class="ws-right"><div class="ws-right-title">填写审批</div>' + formHtml + '</div></div>', footer);
+  showModal('填写审批工单 — ' + av.name, '<div class="ws-layout">' + leftHtml + rightHtml + '</div>', footer);
+  setTimeout(function() { document.querySelector('.modal').classList.remove('modal-wide'); }, 100);
 }
 
 function submitApprovalItem(delegateId) {
@@ -1941,48 +1948,9 @@ function submitApprovalItem(delegateId) {
     av.items[k] = document.getElementById('apv_' + k).value;
   });
   closeModal();
+  viewApprovalWorksheet(delegateId);
   renderNav();
   alert('审批工单已保存！');
-}
-
-function viewApprovalWorkOrder(delegateId) {
-  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
-  if (!d) return;
-
-  var infoHtml = '<table class="ws-info-table">' +
-    '<tr><td colspan="2" class="ws-section">委托信息</td></tr>' +
-    '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
-    '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
-    '<tr><td>检测对象名称及版本</td><td>' + d.objNameVer + '</td></tr>' +
-    '<tr><td>检测领域</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td></tr>' +
-    '<tr><td>要求完成时间</td><td>' + (d.deadline || '-') + '</td></tr>' +
-    '</table>';
-
-  var approverRows = d.approvers.map(function(av) {
-    var filled = av.result ? true : false;
-    var itemRows = '';
-    if (filled && av.items) {
-      itemRows = '<div style="font-size:11px;color:#666;margin-top:4px">' +
-        ITEM_KEYS.map(function(k) {
-          return '<span style="margin-right:8px;white-space:nowrap">' + ITEM_LABELS[k] + '：<b>' + (av.items[k] || '-') + '</b></span>';
-        }).join('') + '</div>';
-    }
-    return '<tr><td>' + av.name + '</td><td>' + av.role + '</td>' +
-      '<td>' + (filled ? statusTag(av.result) : '<span style="color:#999">未填写</span>') + '</td>' +
-      '<td>' + (av.comment || '-') + itemRows + '</td></tr>';
-  }).join('');
-
-  var rightHtml = '<div><b style="font-size:14px">审批进度</b>' +
-    '<table style="margin-top:8px"><thead><tr><th>审批人</th><th>角色</th><th>结论</th><th>意见</th></tr></thead><tbody>' +
-    approverRows + '</tbody></table></div>';
-
-  var allFilled = d.approvers.every(function(av) { return !!av.result; });
-  var footer = '';
-  if (allFilled && d.status === '审批中') {
-    footer = '<button class="btn btn-warning" onclick="finalizeApproval(\'' + delegateId + '\')">汇总审批结论</button>';
-  }
-
-  showModal('委托审批工单 - ' + d.id, '<div class="ws-layout"><div class="ws-left">' + infoHtml + '</div><div class="ws-right">' + rightHtml + '</div></div>', footer);
 }
 
 function finalizeApproval(delegateId) {
@@ -2030,9 +1998,9 @@ function pageApproval() {
 
     var ops = '';
     if (d.status === '审批中') {
-      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看审批进度</button>';
+      ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看审批进度</button>';
     } else if (d.status === '已通过' || d.status === '已退回') {
-      ops = '<button class="btn btn-default btn-sm" onclick="viewApprovalWorkOrder(\'' + d.id + '\')">查看详情</button>';
+      ops = '<button class="btn btn-default btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看详情</button>';
     }
 
     return '<tr>' +
