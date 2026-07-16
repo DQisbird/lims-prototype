@@ -1595,6 +1595,9 @@ function filterBarCommission() {
       DOMAINS.map(function(d) { return '<option value="' + d + '">' + DOMAIN_LABELS[d] + ' (' + d + ')</option>'; }).join('') +
     '</select>' +
     '<select id="cf_status" onchange="filterCommissions()"><option value="">委托状态-全部</option><option value="待审批">待审批</option><option value="审批中">审批中</option><option value="已通过">已通过</option><option value="不通过">不通过</option></select>' +
+    '<input type="date" id="cf_date_from" onchange="filterCommissions()" style="padding:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:130px" title="创建时间从">' +
+    '<span style="color:#999;margin:0 4px">~</span>' +
+    '<input type="date" id="cf_date_to" onchange="filterCommissions()" style="padding:6px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:130px" title="创建时间至">' +
     '<button class="btn btn-primary" onclick="showCommissionForm()">新建委托</button>' +
     '</div>';
 }
@@ -1604,11 +1607,15 @@ function filterCommissions() {
   var client = (document.getElementById('cf_client').value || '').toLowerCase();
   var domain = document.getElementById('cf_domain').value;
   var status = document.getElementById('cf_status').value;
+  var dateFrom = document.getElementById('cf_date_from').value;
+  var dateTo = document.getElementById('cf_date_to').value;
   commFilteredData = DELEGATES.filter(function(d) {
     if (id && d.id.toLowerCase().indexOf(id) < 0) return false;
     if (client && d.client.toLowerCase().indexOf(client) < 0) return false;
     if (domain && d.domains.indexOf(domain) < 0) return false;
     if (status && d.status !== status) return false;
+    if (dateFrom && d.createDate < dateFrom) return false;
+    if (dateTo && d.createDate > dateTo) return false;
     return true;
   });
   commPage = 1;
