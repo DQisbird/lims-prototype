@@ -315,8 +315,8 @@ var DELEGATES = [
     domains: ['RJ'], standards: 'GB/T 25000.51-2016', deadline: '2026-06-01',
     specialReq: '', status: '已通过', createDate: '2026-01-05', creator: '张工',
     approvers: [
-      { name: '李工', role: '部门负责人', result: '通过', comment: '' },
-      { name: '赵工', role: '技术负责人', result: '通过', comment: '' }
+      { name: '李工', role: '部门负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } },
+      { name: '赵工', role: '技术负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } }
     ], approvalConclusion: '通过'
   },
   {
@@ -326,9 +326,9 @@ var DELEGATES = [
     domains: ['RJ', 'AQ'], standards: 'GB/T 25000.51-2016', deadline: '2026-07-01',
     specialReq: '需增加安全性检测', status: '审批中', createDate: '2026-01-20', creator: '张工',
     approvers: [
-      { name: '张工', role: '质量负责人', result: '', comment: '' },
-      { name: '李工', role: '部门负责人', result: '', comment: '' },
-      { name: '赵工', role: '技术负责人', result: '', comment: '' }
+      { name: '张工', role: '质量负责人', result: '', comment: '', items: {} },
+      { name: '李工', role: '部门负责人', result: '', comment: '', items: {} },
+      { name: '赵工', role: '技术负责人', result: '', comment: '', items: {} }
     ], approvalConclusion: ''
   },
   {
@@ -338,8 +338,8 @@ var DELEGATES = [
     domains: ['YJ'], standards: 'GB 4717-2005', deadline: '2026-03-01',
     specialReq: '', status: '已通过', createDate: '2026-01-15', creator: '李工',
     approvers: [
-      { name: '张工', role: '质量负责人', result: '通过', comment: '' },
-      { name: '赵工', role: '技术负责人', result: '通过', comment: '' }
+      { name: '张工', role: '质量负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } },
+      { name: '赵工', role: '技术负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } }
     ], approvalConclusion: '通过'
   },
   {
@@ -394,8 +394,7 @@ function renderNav() {
     { label: '委托管理', children: [
       { id: 'review', label: '合同评审' },
       { id: 'contract', label: '合同签订' },
-      { id: 'commission', label: '委托创建' },
-      { id: 'approval', label: '委托审批' }
+      { id: 'commission', label: '委托创建' }
     ]},
     { label: '检测任务管理', children: [
       { id: 'task', label: '任务列表' },
@@ -426,7 +425,7 @@ function renderNav() {
 
 var TITLES = {
   todo: '工单管理 · 待办', done: '工单管理 · 已办',
-  review: '合同评审', contract: '合同签订', commission: '委托创建', approval: '委托审批',
+  review: '合同评审', contract: '合同签订', commission: '委托创建',
   task: '任务列表', filemgmt: '文件配置管理', supervision: '过程质量监督',
   sample: '样品列表', standards: '标准库', device: '设备台账', personnel: '人员档案',
   audit: '内部审核', report: '报告查询', users: '用户管理'
@@ -563,7 +562,6 @@ function renderPage() {
     case 'review': c.innerHTML = pageReview(); break;
     case 'contract': c.innerHTML = pageContract(); break;
     case 'commission': c.innerHTML = pageCommission(); break;
-    case 'approval': c.innerHTML = pageApproval(); break;
     case 'todo': c.innerHTML = pageTodo(); break;
     case 'done': c.innerHTML = pageDone(); break;
     default: c.innerHTML = pagePlaceholder(TITLES[curPage] || curPage); break;
@@ -606,7 +604,7 @@ function pageTodo() {
   var rows = todos.map(function(t) {
     var btnHtml = t.action === 'approval'
       ? '<button class="btn btn-primary btn-sm" onclick="fillApprovalWorkOrder(\'' + t.refId + '\')">处理</button>'
-      : '<button class="btn btn-primary btn-sm" onclick="navTo(\'' + t.target + '\')">处理</button>';
+      : '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + t.refId + '\')">处理</button>';
     return '<tr><td>' + t.type + '</td><td>' + t.project + '</td><td>' + t.client + '</td><td>' + t.date + '</td><td>' + t.refId + '</td>' +
       '<td>' + btnHtml + '</td></tr>';
   }).join('');
@@ -1717,7 +1715,7 @@ function confirmApprovers(delegateId) {
   var approvers = [];
   var boxes = document.querySelectorAll('#modalBody input[type="checkbox"]:checked');
   boxes.forEach(function(cb) {
-    approvers.push({ name: cb.value, role: cb.getAttribute('data-role'), result: '', comment: '' });
+    approvers.push({ name: cb.value, role: cb.getAttribute('data-role'), result: '', comment: '', items: {} });
   });
   if (approvers.length === 0) { alert('请至少选择1位审批人'); return; }
   var hasTech = approvers.some(function(a) { return a.role === '技术负责人'; });
@@ -1813,19 +1811,35 @@ function fillApprovalWorkOrder(delegateId) {
     '<tr><td>特殊要求</td><td>' + (d.specialReq || '无') + '</td></tr>' +
     '</table>';
 
-  var formHtml = makeForm([
+  var itemFields = ITEM_KEYS.map(function(k) {
+    return { l: ITEM_LABELS[k], r: 1, h: makeSelect('apv_' + k, ['是', '否'], (av.items && av.items[k]) || '') };
+  });
+
+  var formHtml = makeForm(itemFields.concat([
     { l: '审批意见', h: '<textarea id="apv_comment" rows="3" placeholder="可选填写审批意见">' + (av.comment || '') + '</textarea>' },
     { l: '审批结论', r: 1, h: makeSelect('apv_conclusion', ['通过', '不通过'], av.result || '通过') }
-  ]);
+  ]));
   var footer = '<button class="btn btn-primary" onclick="submitApprovalItem(\'' + delegateId + '\')">保存</button>';
-  showModal('委托审批 — ' + LOGIN_USER, '<div class="ws-layout"><div class="ws-left">' + infoHtml + '</div><div class="ws-right">' + formHtml + '</div></div>', footer);
+  showModal('委托审批 — ' + LOGIN_USER + '（' + (PERSONNEL.filter(function(p){return p.name===LOGIN_USER;})[0]||{}).role + '）', '<div class="ws-layout"><div class="ws-left">' + infoHtml + '</div><div class="ws-right"><div class="ws-right-title">填写审批</div>' + formHtml + '</div></div>', footer);
 }
 
 function submitApprovalItem(delegateId) {
   var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
   var av = d.approvers.filter(function(a) { return a.name === LOGIN_USER; })[0];
-  av.result = document.getElementById('apv_conclusion').value;
-  av.comment = document.getElementById('apv_comment').value.trim();
+  var conclusion = document.getElementById('apv_conclusion').value;
+  var comment = document.getElementById('apv_comment').value.trim();
+
+  if (conclusion === '不通过' && !comment) {
+    alert('不通过时必须填写不通过原因');
+    return;
+  }
+
+  av.result = conclusion;
+  av.comment = comment;
+  if (!av.items) av.items = {};
+  ITEM_KEYS.forEach(function(k) {
+    av.items[k] = document.getElementById('apv_' + k).value;
+  });
   closeModal();
   renderNav();
   alert('审批工单已保存！');
@@ -1846,9 +1860,16 @@ function viewApprovalWorkOrder(delegateId) {
 
   var approverRows = d.approvers.map(function(av) {
     var filled = av.result ? true : false;
+    var itemRows = '';
+    if (filled && av.items) {
+      itemRows = '<div style="font-size:11px;color:#666;margin-top:4px">' +
+        ITEM_KEYS.map(function(k) {
+          return '<span style="margin-right:8px;white-space:nowrap">' + ITEM_LABELS[k] + '：<b>' + (av.items[k] || '-') + '</b></span>';
+        }).join('') + '</div>';
+    }
     return '<tr><td>' + av.name + '</td><td>' + av.role + '</td>' +
       '<td>' + (filled ? statusTag(av.result) : '<span style="color:#999">未填写</span>') + '</td>' +
-      '<td>' + (av.comment || '-') + '</td></tr>';
+      '<td>' + (av.comment || '-') + itemRows + '</td></tr>';
   }).join('');
 
   var rightHtml = '<div><b style="font-size:14px">审批进度</b>' +
@@ -1883,7 +1904,7 @@ function finalizeApproval(delegateId) {
     var failNames = d.approvers.filter(function(av) { return av.result === '不通过'; }).map(function(av) { return av.name; }).join('、');
     alert('审批不通过！不通过人员：' + failNames + '。委托已退回。');
   }
-  navTo('approval');
+  navTo('commission');
 }
 
 // ============================================================
