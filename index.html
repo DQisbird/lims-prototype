@@ -717,7 +717,7 @@ function reviewActionBtns(r) {
 
 function reviewTableRows(data) {
   return data.map(function(r) {
-    return '<tr><td><a href="javascript:void(0)" style="color:#1890ff" onclick="viewReview(\'' + r.id + '\')">' + r.id + '</a></td>' +
+    return '<tr><td>' + r.id + '</td>' +
       '<td>' + r.proj + '</td><td>' + r.client + '</td><td>' + r.ctype + '</td>' +
       '<td>' + r.domains.map(function(d) { return DOMAIN_LABELS[d] + '(' + d + ')'; }).join('、') + '</td><td>' + statusTag(r.conclusion) + '</td>' +
       '<td>' + r.date + '</td><td>' + r.initiator + '</td><td>' + reviewActionBtns(r) + '</td></tr>';
@@ -1003,7 +1003,7 @@ function delegateDetailTable(d) {
   return '<table class="ws-info-table">' +
     '<tr><td colspan="2" class="ws-section">基本信息</td></tr>' +
     '<tr><td>委托编号</td><td>' + d.id + '</td></tr>' +
-    '<tr><td>关联合同</td><td>' + (c ? c.id + ' | ' + c.name : '独立委托（无关联合同）') + '</td></tr>' +
+    '<tr><td>关联合同</td><td>' + (c ? c.id + ' | ' + c.name + (c.contractFileName ? ' <br><a href="javascript:void(0)" style="color:#1890ff;font-size:11px" onclick="alert(\'合同附件：' + c.contractFileName + '\\n（原型演示：附件名已记录，实际使用时此处可下载）\')">📎 查看合同附件</a>' : '') : '独立委托（无关联合同）') + '</td></tr>' +
     '<tr><td>委托方</td><td>' + d.client + '</td></tr>' +
     '<tr><td>联系人</td><td>' + (d.contact || '-') + '</td></tr>' +
     '<tr><td>联系方式</td><td>' + (d.phone || '-') + '</td></tr>' +
@@ -1020,6 +1020,7 @@ function delegateDetailTable(d) {
     '<tr><td>创建人</td><td>' + (d.creator || '-') + '</td></tr>' +
     '<tr><td>创建日期</td><td>' + (d.createDate || '-') + '</td></tr>' +
     '<tr><td>审批结论</td><td>' + (d.approvalConclusion ? statusTag(d.approvalConclusion) : '<span style="color:#999">-</span>') + '</td></tr>' +
+    (d.attachments && d.attachments.length > 0 ? '<tr><td>委托附件</td><td>' + d.attachments.map(function(a) { return '📎 ' + a; }).join('<br>') + '</td></tr>' : '') +
     '</table>';
 }
 
@@ -1361,12 +1362,15 @@ function saveContract() {
   if (CONTRACTS.some(function(c) { return c.id === id; })) { alert('合同编号 ' + id + ' 已存在，请修改后缀'); return; }
 
   var r = REVIEWS.filter(function(x) { return x.id === reviewId; })[0];
+  var ctFile = document.getElementById('ctFile');
+  var fileName = (ctFile && ctFile.files && ctFile.files[0]) ? ctFile.files[0].name : '';
   CONTRACTS.push({
     id: id, name: name, client: client, reviewId: reviewId, reviewProj: r.proj,
     amount: parseFloat(document.getElementById('ctAmount').value) || 0,
     signDate: document.getElementById('ctSignDate').value,
     servicePeriod: document.getElementById('ctPeriod').value.trim(),
     summary: document.getElementById('ctSummary').value.trim(),
+    contractFileName: fileName,
     status: '草稿', delegateCount: 0, delegates: []
   });
   closeModal(); navTo('contract');
@@ -1397,6 +1401,7 @@ function editContract(cid) {
     '<tr><td>签订日期</td><td><input id="ctSignDate" type="date" style="width:100%;padding:6px" value="' + (c.signDate || '') + '"></td></tr>' +
     '<tr><td>服务期限</td><td><input id="ctPeriod" type="text" style="width:100%;padding:6px" value="' + (c.servicePeriod || '') + '"></td></tr>' +
     '<tr><td>合同条款摘要</td><td><textarea id="ctSummary" style="width:100%;padding:6px;height:80px">' + (c.summary || '') + '</textarea></td></tr>' +
+    '<tr><td>合同附件</td><td><input type="file" id="ctFile" style="padding:6px">' + (c.contractFileName ? '<br><small style="color:#1890ff">📎 当前附件：' + c.contractFileName + '</small>' : '') + '</td></tr>' +
     '</table>';
 
   showModal('编辑合同 - ' + c.id, body,
@@ -1418,6 +1423,8 @@ function saveEditContract(cid) {
   c.signDate = document.getElementById('ctSignDate').value;
   c.servicePeriod = document.getElementById('ctPeriod').value.trim();
   c.summary = document.getElementById('ctSummary').value.trim();
+  var ctFile = document.getElementById('ctFile');
+  if (ctFile && ctFile.files && ctFile.files[0]) { c.contractFileName = ctFile.files[0].name; }
   if (!c.name) { alert('请输入合同名称'); return; }
   closeModal(); navTo('contract');
   alert('合同 ' + cid + ' 已更新');
@@ -1456,6 +1463,7 @@ function viewContract(cid) {
     '<tr><td><b>签订日期</b></td><td>' + (c.signDate || '-') + '</td></tr>' +
     '<tr><td><b>服务期限</b></td><td>' + (c.servicePeriod || '-') + '</td></tr>' +
     '<tr><td><b>合同条款摘要</b></td><td>' + (c.summary || '-') + '</td></tr>' +
+    '<tr><td><b>合同附件</b></td><td>' + (c.contractFileName ? '<span style="color:#1890ff">📎 ' + c.contractFileName + '</span>' : '<span style="color:#999">未上传</span>') + '</td></tr>' +
     '<tr><td><b>合同状态</b></td><td>' + statusTag(c.status) + '</td></tr>' +
     '<tr><td><b>关联委托数</b></td><td>' +
       (c.delegateCount > 0
@@ -1616,7 +1624,8 @@ function showCommissionForm(editId) {
     { l: '检测领域', r: 1, h: '<input type="hidden" id="cf_domains" data-sel=\'' + JSON.stringify(selDomains) + '\' data-opts=\'' + JSON.stringify(dOpts) + '\'>' + multiSelectHtml('cf_domains', selDomains, dOpts, '点击选择检测领域（至少选1个）') },
     { l: '检测依据', r: 1, h: '<input id="cf_standards" value="' + (init.standards || '') + '" placeholder="如 GB/T 25000.51-2016">' },
     { l: '要求完成时间', r: 1, h: '<input type="text" id="cf_deadline" value="' + (init.deadline || fmt(NOW)) + '" placeholder="如：2026-06-01 或 至终验为止">' },
-    { l: '特殊要求/说明', r: 1, h: '<textarea id="cf_specialReq" placeholder="无特殊要求可不填">' + (init.specialReq || '') + '</textarea>' }
+    { l: '特殊要求/说明', r: 1, h: '<textarea id="cf_specialReq" placeholder="无特殊要求可不填">' + (init.specialReq || '') + '</textarea>' },
+    { l: '附件上传', r: 1, h: '<input type="file" id="cf_attachment" style="padding:6px"><br><small style="color:#999">支持上传合同、技术要求等文件（上限10MB）</small><div id="cf_existing_attachment" style="font-size:12px;color:#1890ff;margin-top:4px">' + (init.attachments && init.attachments.length > 0 ? '📎 已有附件：' + init.attachments.join('、') : '') + '</div>' }
   ]);
 
   var isNew = !editId;
@@ -1774,6 +1783,11 @@ function collectCommissionForm(editId) {
   var contractId = document.getElementById('cf_contract').value;
   var existing = editId ? DELEGATES.filter(function(x) { return x.id === editId; })[0] : null;
 
+  // 附件处理
+  var attachments = (existing && existing.attachments) ? existing.attachments.slice() : [];
+  var attFile = document.getElementById('cf_attachment');
+  if (attFile && attFile.files && attFile.files[0]) { attachments.push(attFile.files[0].name); }
+
   return {
     id: existing ? existing.id : '',
     contractId: contractId || (existing ? existing.contractId : ''),
@@ -1787,6 +1801,7 @@ function collectCommissionForm(editId) {
     standards: document.getElementById('cf_standards').value.trim(),
     deadline: document.getElementById('cf_deadline').value.trim(),
     specialReq: document.getElementById('cf_specialReq').value.trim(),
+    attachments: attachments,
     status: existing ? existing.status : '待审批',
     createDate: existing ? existing.createDate : '',
     creator: existing ? existing.creator : ''
@@ -1842,7 +1857,8 @@ function viewCommissionDetail(delegateId) {
     '<tr><td><b>委托状态</b></td><td>' + statusTag(d.status) + '</td></tr>' +
     '<tr><td><b>创建人</b></td><td>' + (d.creator || '-') + '</td></tr>' +
     '<tr><td><b>创建日期</b></td><td>' + (d.createDate || '-') + '</td></tr>' +
-    '<tr><td><b>审批结论</b></td><td>' + (d.approvalConclusion ? statusTag(d.approvalConclusion) : '<span style="color:#999">-</span>') + '</td></tr>';
+    '<tr><td><b>审批结论</b></td><td>' + (d.approvalConclusion ? statusTag(d.approvalConclusion) : '<span style="color:#999">-</span>') + '</td></tr>' +
+    '<tr><td><b>附件</b></td><td>' + (d.attachments && d.attachments.length > 0 ? d.attachments.map(function(a) { return '📎 ' + a; }).join('<br>') : '<span style="color:#999">无附件</span>') + '</td></tr>';
 
   if (d.approvers && d.approvers.length > 0) {
     var approverInfo = d.approvers.map(function(av) {
