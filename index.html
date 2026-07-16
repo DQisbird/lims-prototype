@@ -2306,6 +2306,22 @@ function viewTaskDetail(taskId) {
     '<div style="margin:16px 0"><b>流转记录</b></div>' +
     '<table><thead><tr><th>阶段</th><th>日期</th><th>操作人</th><th>详细信息</th></tr></thead><tbody>' + (historyHtml || '<tr><td colspan="4" style="text-align:center;color:#999">暂无流转记录</td></tr>') + '</tbody></table>';
 
+
+  // 阶段操作区
+  var stageIdx = STAGES.indexOf(t.currentStage);
+  var opHtml = '';
+  if (t.status !== '已完成' && t.status !== '已归档') {
+    opHtml = '<div style="margin:16px 0"><b>当前阶段操作 — ' + t.currentStage + '</b></div><div style="padding:12px;background:#fff7e6;border-radius:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+    if (t.currentStage === '样品接收') {
+      opHtml += '<button class="btn btn-success" onclick="stageReceiveSample(\'' + t.id + '\')">✓ 确认样品已接收</button>';
+    } else if (t.currentStage === '任务派工') {
+      opHtml += '<button class="btn btn-primary" onclick="openTaskAssignModal(\'' + t.id + '\')">📋 任务派工</button>';
+    } else {
+      opHtml += '<span style="color:#999">该阶段操作待实现...</span>';
+    }
+    opHtml += '</div>';
+  }
+  body += opHtml;
   showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
   var modal = document.getElementById('modalOverlay');
   var modalEl = modal.querySelector('.modal');
@@ -2368,6 +2384,68 @@ function viewReviewDetail(reviewId) {
 // ============================================================
 // 文件配置管理页面 (2.3)
 // ============================================================
+
+// ============================================================
+// 阶段推进 — A.前期准备
+// ============================================================
+function stageReceiveSample(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '样品接收') return;
+  var now = new Date();
+  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  t.stageHistory.push({ stage: '样品接收', date: ds, operator: LOGIN_USER });
+  t.currentStage = '任务派工';
+  alert('【原型演示】样品已确认接收！\n进入下一阶段：任务派工');
+  closeModal();
+  renderPage();
+}
+
+function openTaskAssignModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '任务派工') return;
+  
+  // 可用检测人员（模拟）
+  var inspectors = ['王工', '李工', '赵工', '孙工', '钱工', '陈工'];
+  var iOpts = '<option value="">-- 请选择 --</option>' + inspectors.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
+  
+  var body = '<div class="form-group"><label>主检人员<span style="color:red">*</span></label><div class="form-ctl"><select id="assign_inspector" style="width:100%">' + iOpts + '</select></div></div>' +
+    '<div class="form-group"><label>复核人员<span style="color:red">*</span></label><div class="form-ctl"><select id="assign_reviewer" style="width:100%">' + iOpts + '</select></div></div>' +
+    '<div class="form-group"><label>计划开始日期</label><div class="form-ctl"><input type="date" id="assign_planStart" value="' + (t.planStart||'') + '"></div></div>' +
+    '<div class="form-group"><label>计划完成日期</label><div class="form-ctl"><input type="date" id="assign_planEnd" value="' + (t.planEnd||'') + '"></div></div>' +
+    '<div style="color:#fa8c16;font-size:12px;margin-top:6px">⚠ 校验：主检人必须具备该领域授权；主检人和复核人不能同一人</div>';
+
+  showModal('任务派工 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmTaskAssign(\'' + taskId + '\')">确认派工</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+  );
+}
+
+function confirmTaskAssign(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var inspector = document.getElementById('assign_inspector').value;
+  var reviewer = document.getElementById('assign_reviewer').value;
+  var planStart = document.getElementById('assign_planStart').value;
+  var planEnd = document.getElementById('assign_planEnd').value;
+  
+  if (!inspector) { alert('请选择主检人员'); return; }
+  if (!reviewer) { alert('请选择复核人员'); return; }
+  if (inspector === reviewer) { alert('主检人和复核人不能同一人！'); return; }
+  
+  var now = new Date();
+  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  t.inspector = inspector;
+  t.reviewer = reviewer;
+  if (planStart) t.planStart = planStart;
+  if (planEnd) t.planEnd = planEnd;
+  t.stageHistory.push({ stage: '任务派工', date: ds, operator: LOGIN_USER, inspector: inspector, reviewer: reviewer });
+  t.currentStage = '测试方案';
+  
+  alert('【原型演示】派工完成！\n主检人：' + inspector + ' | 复核人：' + reviewer + '\n进入下一阶段：测试方案（B.方案阶段）');
+  closeModal();
+  renderPage();
+}
+
 function pageFilemgmt() {
   var filterName = '', filterFileId = '', filterTask = '', filterStage = '', filterVerStatus = '';
   var filtered = FILES_CFG.slice();
