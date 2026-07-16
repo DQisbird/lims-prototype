@@ -2185,58 +2185,33 @@ function pageApproval() {
 // 任务列表页面 (2.1)
 // ============================================================
 function pageTask() {
-  var filterId = '', filterClient = '', filterDomain = '', filterStage = '', filterStatus = '', filterInspector = '';
-  var filtered = TASKS.slice();
+  var filterId = '', filterClient = '', filterDomain = '', filterStage = '', filterInspector = '';
   
+  function getBaseData() {
+    if (taskTab === 'active') return TASKS.filter(function(t) { return t.status === '进行中'; });
+    return TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档'; });
+  }
+
   function doFilter() {
     filterId = (document.getElementById('task_filter_id')||{}).value || '';
     filterClient = (document.getElementById('task_filter_client')||{}).value || '';
     filterDomain = (document.getElementById('task_filter_domain')||{}).value || '';
     filterStage = (document.getElementById('task_filter_stage')||{}).value || '';
-    filterStatus = (document.getElementById('task_filter_status')||{}).value || '';
     filterInspector = (document.getElementById('task_filter_inspector')||{}).value || '';
-    filtered = TASKS.filter(function(t) {
+    var base = getBaseData();
+    var f = base.filter(function(t) {
       if (filterId && t.id.indexOf(filterId) === -1) return false;
       if (filterClient && t.client.indexOf(filterClient) === -1) return false;
       if (filterDomain && t.domain !== filterDomain) return false;
       if (filterStage && t.currentStage !== filterStage) return false;
-      if (filterStatus && t.status !== filterStatus) return false;
       if (filterInspector && (t.inspector||'待分配').indexOf(filterInspector) === -1) return false;
       return true;
     });
+    taskFiltered = f;
     refreshTaskTable();
   }
-  
-  function refreshTaskTable() {
-    var rows = filtered.map(function(t) {
-      var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
-      var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
-      var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
-      if (t.reviewId) {
-        ops += ' <button class="btn btn-default btn-sm" onclick="viewReviewDetail(\'' + t.reviewId + '\')">查看委托</button>';
-      }
-      return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
-        '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
-        '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
-        '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
-    }).join('');
-    var tbody = document.getElementById('task_tbody');
-    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px">无匹配任务</td></tr>';
-  }
 
-  var domainOpts = DOMAINS.map(function(d) { return '<option value="' + d + '">' + DOMAIN_LABELS[d] + '</option>'; }).join('');
-  var stageOpts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
-  
-  setTimeout(function() {
-    document.getElementById('task_filter_id').oninput = doFilter;
-    document.getElementById('task_filter_client').oninput = doFilter;
-    document.getElementById('task_filter_domain').onchange = doFilter;
-    document.getElementById('task_filter_stage').onchange = doFilter;
-    document.getElementById('task_filter_status').onchange = doFilter;
-    document.getElementById('task_filter_inspector').oninput = doFilter;
-  }, 10);
-
-  var rows = TASKS.map(function(t) {
+  function rowHtml(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
     var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
     var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
@@ -2247,22 +2222,78 @@ function pageTask() {
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
       '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
-  }).join('');
+  }
+
+  function refreshTaskTable() {
+    var rows = taskFiltered.map(rowHtml).join('');
+    var tbody = document.getElementById('task_tbody');
+    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px">无匹配任务</td></tr>';
+    var el = document.getElementById('task_count');
+    if (el) el.innerHTML = '共 <b>' + taskFiltered.length + '</b> 条';
+  }
+
+  var domainOpts = DOMAINS.map(function(d) { return '<option value="' + d + '">' + DOMAIN_LABELS[d] + '</option>'; }).join('');
+  var stageOpts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+
+  var activeCount = TASKS.filter(function(t) { return t.status === '进行中'; }).length;
+  var doneCount = TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档'; }).length;
+
+  taskTab = 'active';
+  taskFiltered = getBaseData();
+  var initialRows = taskFiltered.map(rowHtml).join('');
+
+  setTimeout(function() {
+    document.getElementById('task_filter_id').oninput = doFilter;
+    document.getElementById('task_filter_client').oninput = doFilter;
+    document.getElementById('task_filter_domain').onchange = doFilter;
+    document.getElementById('task_filter_stage').onchange = doFilter;
+    document.getElementById('task_filter_inspector').oninput = doFilter;
+  }, 10);
 
   return '<div class="card"><div class="card-title">检测任务列表</div>' +
-    '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+    '<div style="margin-bottom:4px">' +
+      '<button id="task_tab_active" class="btn btn-primary btn-sm" onclick="switchTaskTab(\'active\')">🔄 进行中 (' + activeCount + ')</button> ' +
+      '<button id="task_tab_done" class="btn btn-default btn-sm" onclick="switchTaskTab(\'done\')">✅ 已完成 (' + doneCount + ')</button>' +
+    '</div>' +
+    '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">' +
       '<input id="task_filter_id" placeholder="任务编号" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:200px">' +
       '<input id="task_filter_client" placeholder="委托方" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:150px">' +
       '<select id="task_filter_domain" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">检测领域-全部</option>' + domainOpts + '</select>' +
       '<select id="task_filter_stage" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">当前阶段-全部</option>' + stageOpts + '</select>' +
-      '<select id="task_filter_status" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">任务状态-全部</option><option value="进行中">进行中</option><option value="已完成">已完成</option><option value="已归档">已归档</option></select>' +
       '<input id="task_filter_inspector" placeholder="主检人" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:120px">' +
       '<button class="btn btn-primary" onclick="openNewTaskModal()">+ 新建任务</button>' +
-      '<span style="margin-left:auto;color:#666;font-size:13px">共 <b>' + TASKS.length + '</b> 条</span>' +
+      '<span id="task_count" style="margin-left:auto;color:#666;font-size:13px">共 <b>' + taskFiltered.length + '</b> 条</span>' +
     '</div>' +
     '<table><thead><tr>' +
     '<th>任务编号</th><th>关联委托</th><th>委托方</th><th>检测领域</th><th>检测对象</th><th>当前阶段</th><th>主检人</th><th>任务状态</th><th>计划完成</th><th>操作</th>' +
-    '</tr></thead><tbody id="task_tbody">' + rows + '</tbody></table></div>';
+    '</tr></thead><tbody id="task_tbody">' + initialRows + '</tbody></table></div>';
+}
+
+var taskTab = 'active', taskFiltered = [];
+function switchTaskTab(tab) {
+  taskTab = tab;
+  document.getElementById('task_tab_active').className = tab === 'active' ? 'btn btn-primary btn-sm' : 'btn btn-default btn-sm';
+  document.getElementById('task_tab_done').className = tab === 'done' ? 'btn btn-primary btn-sm' : 'btn btn-default btn-sm';
+  // 清空筛选条件
+  var els = ['task_filter_id','task_filter_client','task_filter_domain','task_filter_stage','task_filter_inspector'];
+  els.forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
+  // 重新过滤
+  var base = tab === 'active' ? TASKS.filter(function(t) { return t.status === '进行中'; }) : TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档'; });
+  taskFiltered = base;
+  var rows = taskFiltered.map(function(t) {
+    var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
+    var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
+    var ops = '<button class="btn btn-primary btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
+    if (t.reviewId) ops += ' <button class="btn btn-default btn-sm" onclick="viewReviewDetail(\'' + t.reviewId + '\')">查看委托</button>';
+    return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
+      '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
+      '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
+      '<td>' + (t.planEnd||'-') + '</td><td>' + ops + '</td></tr>';
+  }).join('');
+  var tbody = document.getElementById('task_tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px">无匹配任务</td></tr>';
+  var el = document.getElementById('task_count');
+  if (el) el.innerHTML = '共 <b>' + taskFiltered.length + '</b> 条';
 }
 
 function viewTaskDetail(taskId) {
