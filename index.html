@@ -244,7 +244,8 @@ var CONTRACTS = [
     servicePeriod: '2025-12-15 至 2026-06-01',
     summary: '委托方委托检测方依据GB/T 25000.51-2016对智慧校园管理系统V3.0进行软件质量检测，检测方按合同约定时间出具检测报告。',
     status: '进行中',
-    delegateCount: 2
+    delegateCount: 2,
+    delegates: []
   },
   {
     id: 'TZJC-JCHT-2025-12-20',
@@ -257,7 +258,8 @@ var CONTRACTS = [
     servicePeriod: '2025-12-20 至 2026-03-01',
     summary: '依据GB 4717-2005对消防报警控制器JB-QB进行安全检测，验证报警响应时间、误报率、环境适应性等指标。',
     status: '进行中',
-    delegateCount: 1
+    delegateCount: 1,
+    delegates: []
   },
   {
     id: 'TZJC-JCHT-2026-03-15',
@@ -270,7 +272,8 @@ var CONTRACTS = [
     servicePeriod: '2026-03-15 至 2027-03-14',
     summary: '年度合同，对浙江省政务云平台进行定期渗透测试和安全评估，含漏洞扫描、渗透攻击、权限提升、数据泄露风险检测。需签署保密协议。',
     status: '进行中',
-    delegateCount: 3
+    delegateCount: 3,
+    delegates: []
   },
   {
     id: 'TZJC-JCHT-2026-07-20',
@@ -283,7 +286,8 @@ var CONTRACTS = [
     servicePeriod: '2026-07-20 至 2027-01-20',
     summary: '对智能电网调度控制系统进行硬件安全检测和软件质量检测，覆盖SCADA、EMS、DMS等子系统。',
     status: '草稿',
-    delegateCount: 0
+    delegateCount: 0,
+    delegates: []
   },
   {
     id: 'TZJC-JCHT-2026-07-22',
@@ -296,11 +300,44 @@ var CONTRACTS = [
     servicePeriod: '',
     summary: '',
     status: '草稿',
-    delegateCount: 0
+    delegateCount: 0,
+    delegates: []
   }
 ];
 
 var CONTRACT_STATUS = { '草稿': 'default', '进行中': 'green', '已完成': 'blue', '已终止': 'red' };
+
+var DELEGATES = [
+  {
+    id: 'TZJC-WTSQ-2026-01-05-001', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
+    contact: '赵处长', phone: '13800138001', address: '深圳市福田区',
+    objName: '智慧校园管理系统V3.0', objVersion: 'V3.0.1', objType: '软件系统',
+    domains: ['RJ'], standards: 'GB/T 25000.51-2016', deadline: '2026-06-01',
+    specialReq: '', status: '已通过', createDate: '2026-01-05', creator: '张工'
+  },
+  {
+    id: 'TZJC-WTSQ-2026-01-20-001', contractId: 'TZJC-JCHT-2025-12-15', client: '深圳教育局',
+    contact: '赵处长', phone: '13800138001', address: '深圳市福田区',
+    objName: '智慧校园管理系统V3.0', objVersion: 'V3.0.2', objType: '软件系统',
+    domains: ['RJ', 'AQ'], standards: 'GB/T 25000.51-2016', deadline: '2026-07-01',
+    specialReq: '需增加安全性检测', status: '审批中', createDate: '2026-01-20', creator: '张工'
+  },
+  {
+    id: 'TZJC-WTSQ-2026-01-15-001', contractId: 'TZJC-JCHT-2025-12-20', client: '北京消防科技公司',
+    contact: '刘经理', phone: '13900139001', address: '北京市海淀区',
+    objName: '消防报警控制器JB-QB', objVersion: 'V2.1', objType: '硬件设备',
+    domains: ['YJ'], standards: 'GB 4717-2005', deadline: '2026-03-01',
+    specialReq: '', status: '已通过', createDate: '2026-01-15', creator: '李工'
+  },
+  {
+    id: 'TZJC-WTSQ-2026-07-10-001', contractId: 'TZJC-JCHT-2026-07-20', client: '国家电网华东分部',
+    contact: '王处长', phone: '13500135001', address: '上海市浦东新区',
+    objName: '智能电网调度控制系统', objVersion: 'V4.0', objType: '软件系统',
+    domains: ['YJ', 'AQ'], standards: 'GB/T 22239-2019', deadline: '2027-01-20',
+    specialReq: '需覆盖SCADA/EMS/DMS子系统', status: '待审批', createDate: '2026-07-10', creator: '王工'
+  }
+];
+var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过': 'green', '已退回': 'red' };
 
 // ============================================================
 // 导航
@@ -385,7 +422,7 @@ function navTo(id) {
 // 工具函数
 // ============================================================
 function statusTag(s) {
-  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green', '进行中': 'green', '已完成': 'blue', '已终止': 'red', '草稿': 'default' };
+  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green', '进行中': 'green', '已完成': 'blue', '已终止': 'red', '草稿': 'default', '待审批': 'default', '审批中': 'blue', '已通过': 'green', '已退回': 'red' };
   return '<span class="tag tag-' + (m[s] || 'blue') + '">' + s + '</span>';
 }
 
@@ -1259,7 +1296,7 @@ function saveContract() {
     signDate: document.getElementById('ctSignDate').value,
     servicePeriod: document.getElementById('ctPeriod').value.trim(),
     summary: document.getElementById('ctSummary').value.trim(),
-    status: '草稿', delegateCount: 0
+    status: '草稿', delegateCount: 0, delegates: []
   });
   closeModal(); navTo('contract');
   alert('合同 ' + id + ' 已创建（草稿）');
@@ -1349,10 +1386,45 @@ function viewContract(cid) {
     '<tr><td><b>服务期限</b></td><td>' + (c.servicePeriod || '-') + '</td></tr>' +
     '<tr><td><b>合同条款摘要</b></td><td>' + (c.summary || '-') + '</td></tr>' +
     '<tr><td><b>合同状态</b></td><td>' + statusTag(c.status) + '</td></tr>' +
-    '<tr><td><b>关联委托数</b></td><td>' + c.delegateCount + '</td></tr>';
+    '<tr><td><b>关联委托数</b></td><td>' +
+      (c.delegateCount > 0
+        ? '<a href="javascript:void(0)" style="color:#1890ff" onclick="viewContractDelegates(\'' + c.id + '\')">' + c.delegateCount + ' 个 → 查看详情</a>'
+        : '0（暂无关联委托）') +
+    '</td></tr>';
 
   showModal('合同详情 - ' + c.id,
     '<table class="ws-form-table">' + rows + '</table>',
+    '<button class="btn btn-default" onclick="closeModal()">关闭</button>'
+  );
+}
+
+function viewContractDelegates(cid) {
+  var c = CONTRACTS.filter(function(x) { return x.id === cid; })[0];
+  if (!c) return;
+
+  if (c.delegateCount === 0) {
+    alert('该合同暂无关联委托');
+    return;
+  }
+
+  var delegates = (typeof DELEGATES !== 'undefined') ? DELEGATES.filter(function(d) { return d.contractId === cid; }) : [];
+  if (delegates.length === 0) {
+    alert('该合同暂无关联委托记录');
+    return;
+  }
+
+  var rows = delegates.map(function(d) {
+    return '<tr>' +
+      '<td>' + d.id + '</td><td>' + d.client + '</td>' +
+      '<td>' + d.objName + '</td><td>' + d.domains.map(function(dm) { return DOMAIN_LABELS[dm] || dm; }).join('、') + '</td>' +
+      '<td>' + statusTag(d.status) + '</td><td>' + (d.createDate || '-') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  showModal('合同 ' + cid + ' 关联委托列表',
+    '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
+      '<th>委托编号</th><th>委托方</th><th>检测对象</th><th>检测领域</th><th>状态</th><th>创建日期</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>',
     '<button class="btn btn-default" onclick="closeModal()">关闭</button>'
   );
 }
