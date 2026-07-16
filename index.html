@@ -118,6 +118,7 @@ tr:hover{background:#fafafa}
 .stage-detail-table{width:100%;border-collapse:collapse;font-size:13px}
 .stage-detail-table td{padding:6px 10px;border-bottom:1px solid #f5f5f5}
 .stage-detail-table .sdt-label{width:100px;color:#999;text-align:right;padding-right:12px;font-size:12px}
+.stage-detail-table .info-section td{background:#f0f5ff;color:#1890ff;font-weight:bold;font-size:13px;padding:8px 10px;border-bottom:2px solid #d6e4ff}
 
 </style>
 </head>
@@ -2406,12 +2407,49 @@ function viewTaskDetail(taskId) {
   detailHtml += '<div class="stage-detail-placeholder">👆 点击上方流程图的任意阶段查看详情</div>';
   detailHtml += '</div>';
 
-  var body = '<div style="margin-bottom:16px"><b>任务基本信息</b></div>' +
-    '<table class="review-items-table"><tr><td>任务编号</td><td>' + t.id + '</td><td>委托方</td><td>' + t.client + '</td></tr>' +
-    '<tr><td>项目名称</td><td>' + t.proj + '</td><td>检测对象</td><td>' + t.obj + '</td></tr>' +
-    '<tr><td>检测领域</td><td>' + (DOMAIN_LABELS[t.domain]||t.domain) + '</td><td>任务状态</td><td>' + statusTag(t.status) + '</td></tr>' +
-    '<tr><td>主检人</td><td>' + (t.inspector||'待分配') + '</td><td>复核人</td><td>' + (t.reviewer||'待分配') + '</td></tr>' +
-    '<tr><td>计划开始</td><td>' + (t.planStart||'-') + '</td><td>计划完成</td><td>' + (t.planEnd||'-') + '</td></tr></table>' +
+  // 关联数据查找
+  var rev = null;
+  if (t.reviewId) rev = REVIEWS.filter(function(r) { return r.id === t.reviewId; })[0];
+  var del = null;
+  if (t.delegateId) del = DELEGATES.filter(function(d) { return d.id === t.delegateId; })[0];
+
+  // ── 基本信息区：两列表格，左侧标签右侧值 ──
+  var infoRows = '';
+
+  // 任务信息
+  infoRows += '<tr class="info-section"><td colspan="4">📋 任务信息</td></tr>';
+  infoRows += '<tr><td class="sdt-label">任务编号</td><td>' + t.id + '</td><td class="sdt-label">任务状态</td><td>' + statusTag(t.status) + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">检测领域</td><td>' + (DOMAIN_LABELS[t.domain]||t.domain) + '</td><td class="sdt-label">当前阶段</td><td>' + t.currentStage + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">项目名称</td><td>' + t.proj + '</td><td class="sdt-label">检测对象</td><td>' + t.obj + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">委托方</td><td>' + t.client + '</td><td class="sdt-label">创建日期</td><td>' + (t.createDate||'-') + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">主检人</td><td>' + (t.inspector||'<span style="color:#bbb">待分配</span>') + '</td><td class="sdt-label">复核人</td><td>' + (t.reviewer||'<span style="color:#bbb">待分配</span>') + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">计划开始</td><td>' + (t.planStart||'-') + '</td><td class="sdt-label">计划完成</td><td>' + (t.planEnd||'-') + '</td></tr>';
+
+  // 合同评审信息
+  infoRows += '<tr class="info-section"><td colspan="4">📝 合同评审信息 ' + (rev ? '<span style="font-size:11px;font-weight:normal;color:#52c41a">（' + rev.id + '）</span>' : '<span style="font-size:11px;font-weight:normal;color:#faad14">（未关联）</span>') + '</td></tr>';
+  if (rev) {
+    infoRows += '<tr><td class="sdt-label">合同类型</td><td>' + (rev.ctype||'-') + '</td><td class="sdt-label">评审结论</td><td>' + (rev.conclusion === '通过' ? '<span class="tag tag-green">通过</span>' : (rev.conclusion||'-')) + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">联系人</td><td>' + (rev.contact||'-') + '</td><td class="sdt-label">联系方式</td><td>' + (rev.phone||'-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">检测内容</td><td colspan="3">' + (rev.testContent||'-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">检测标准依据</td><td>' + (rev.standardBasis||'-') + '</td><td class="sdt-label">合同金额</td><td>' + (rev.contractAmount ? '¥' + rev.contractAmount.toLocaleString() : '-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">交付期</td><td>' + (rev.deliveryDate||'-') + '</td><td class="sdt-label">交付方式</td><td>' + (rev.deliveryMethod||'-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">是否使用标识</td><td>' + (rev.useLogo||'否') + '</td><td class="sdt-label">其他要求</td><td>' + (rev.otherRequirements||'无') + '</td></tr>';
+  } else {
+    infoRows += '<tr><td colspan="4" style="color:#bbb;text-align:center;padding:12px">⚠️ 该任务未关联合同评审记录</td></tr>';
+  }
+
+  // 委托信息
+  infoRows += '<tr class="info-section"><td colspan="4">📨 委托信息 ' + (del ? '<span style="font-size:11px;font-weight:normal;color:#52c41a">（' + del.id + '）</span>' : '<span style="font-size:11px;font-weight:normal;color:#bbb">（未关联）</span>') + '</td></tr>';
+  if (del) {
+    infoRows += '<tr><td class="sdt-label">委托状态</td><td>' + (del.status === '已通过' ? '<span class="tag tag-green">已通过</span>' : '<span class="tag tag-blue">' + (del.status||'-') + '</span>') + '</td><td class="sdt-label">委托方地址</td><td>' + (del.address||'-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">对象名称版本</td><td colspan="3">' + (del.objNameVer||'-') + '</td></tr>';
+    if (del.specialReq) infoRows += '<tr><td class="sdt-label">特殊要求</td><td colspan="3">' + del.specialReq + '</td></tr>';
+  } else {
+    infoRows += '<tr><td colspan="4" style="color:#bbb;text-align:center;padding:12px">该任务未关联委托记录</td></tr>';
+  }
+
+  var body = '<div style="margin-bottom:12px"><b>任务详情</b></div>' +
+    '<table class="stage-detail-table">' + infoRows + '</table>' +
     '<div style="margin:16px 0"><b>全流程总览</b> <span style="font-size:11px;color:#999;font-weight:normal">（点击阶段查看详情）</span></div>' +
     fHtml + detailHtml;
 
