@@ -85,6 +85,40 @@ tr:hover{background:#fafafa}
 .placeholder-card .ph-icon{font-size:48px;margin-bottom:16px}
 .placeholder-card .ph-text{color:#999;font-size:15px}
 .ws-form-table td:first-child{color:#888;white-space:nowrap}
+
+/* ── 流程图样式 ── */
+.flowchart{display:flex;align-items:flex-start;gap:0;padding:16px 8px;overflow-x:auto;background:#fafbfc;border-radius:8px;margin-bottom:16px;min-height:200px}
+.phase-column{display:flex;flex-direction:column;align-items:center;min-width:110px;flex-shrink:0}
+.phase-header{padding:6px 10px;border-radius:6px;font-size:12px;font-weight:bold;text-align:center;margin-bottom:8px;width:100%}
+.phase-header.phase-done{background:#f6ffed;color:#52c41a}
+.phase-header.phase-current{background:#e6f7ff;color:#1890ff}
+.phase-header.phase-pending{background:#fafafa;color:#bbb}
+.phase-arrow{display:flex;align-items:center;font-size:20px;color:#d9d9d9;padding:20px 4px 0 4px;flex-shrink:0}
+.stage-node{padding:8px 10px;margin:2px 0;border-radius:8px;cursor:pointer;text-align:center;width:100%;border:2px solid transparent;transition:all .2s;position:relative}
+.stage-node:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.stage-node .stage-name{font-size:12px;font-weight:500;line-height:1.3}
+.stage-node .stage-meta{font-size:10px;margin-top:2px}
+.stage-node .stage-meta-sm{font-size:10px;color:#888}
+.stage-node .stage-dot{width:8px;height:8px;border-radius:50%;margin:0 auto 4px auto}
+.stage-node.stage-done{background:#f6ffed;border-color:#b7eb8f}
+.stage-node.stage-done .stage-dot{background:#52c41a}
+.stage-node.stage-done .stage-name{color:#389e0d}
+.stage-node.stage-current{background:#e6f7ff;border-color:#69c0ff;animation:stagePulse 2s infinite}
+.stage-node.stage-current .stage-dot{background:#1890ff;width:10px;height:10px}
+.stage-node.stage-current .stage-name{color:#096dd9;font-weight:bold}
+.stage-node.stage-pending{background:#fafafa;border-color:#f0f0f0}
+.stage-node.stage-pending .stage-dot{background:#d9d9d9}
+.stage-node.stage-pending .stage-name{color:#bbb}
+.stage-node.stage-selected{border-color:#1890ff!important;box-shadow:0 0 0 3px rgba(24,144,255,.2)!important}
+.stage-connector{width:2px;height:10px;background:#d9d9d9;margin:0 auto}
+@keyframes stagePulse{0%,100%{box-shadow:0 0 0 0 rgba(24,144,255,.4)}50%{box-shadow:0 0 0 6px rgba(24,144,255,0)}}
+.stage-detail-panel{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:16px;min-height:80px}
+.stage-detail-placeholder{text-align:center;color:#bbb;padding:24px;font-size:14px}
+.stage-detail-header{font-size:15px;font-weight:bold;color:#333;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0}
+.stage-detail-table{width:100%;border-collapse:collapse;font-size:13px}
+.stage-detail-table td{padding:6px 10px;border-bottom:1px solid #f5f5f5}
+.stage-detail-table .sdt-label{width:100px;color:#999;text-align:right;padding-right:12px;font-size:12px}
+
 </style>
 </head>
 <body>
@@ -2320,28 +2354,57 @@ function viewTaskDetail(taskId) {
   var phaseLabels = { A: '前期准备', B: '方案阶段', C: '实施阶段', D: '问题处理', E: '报告阶段', F: '结项' };
   var curPhase = STAGE_PHASE[t.currentStage] || 'A';
   var curPhaseIdx = phaseOrder.indexOf(curPhase);
-  
-  var progressHtml = phaseOrder.map(function(p, i) {
-    var cls = '';
-    if (i < curPhaseIdx) cls = 'done';
-    else if (i === curPhaseIdx) cls = 'current';
-    else cls = 'pending';
-    var arrow = i < phaseOrder.length - 1 ? '<span style="margin:0 4px;color:#d9d9d9">→</span>' : '';
-    return '<span class="phase-dot phase-' + cls + '" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:12px;font-size:12px;' +
-      (cls==='done'?'background:#f6ffed;color:#52c41a':'') +
-      (cls==='current'?'background:#e6f7ff;color:#1890ff;font-weight:bold':'') +
-      (cls==='pending'?'background:#fafafa;color:#bbb':'') +
-    '">' + phaseLabels[p] + ' [' + p + ']</span>' + arrow;
-  }).join('');
-  
-  var historyHtml = t.stageHistory.map(function(h) {
-    var extra = '';
-    if (h.inspector) extra += ' | 主检人: ' + h.inspector;
-    if (h.reviewer) extra += ' | 复核人: ' + h.reviewer;
-    if (h.file) extra += ' | 文件: ' + h.file;
-    if (h.result) extra += ' | 结果: ' + h.result;
-    return '<tr><td>' + h.stage + '</td><td>' + h.date + '</td><td>' + h.operator + '</td><td>' + extra.replace(/^\s*\|\s*/, '') + '</td></tr>';
-  }).join('');
+
+  // 历史查找表
+  var histMap = {};
+  t.stageHistory.forEach(function(h) { histMap[h.stage] = h; });
+
+  // 按阶段分组
+  var phaseStages = {};
+  STAGES.forEach(function(s) {
+    var p = STAGE_PHASE[s];
+    if (!phaseStages[p]) phaseStages[p] = [];
+    phaseStages[p].push(s);
+  });
+
+  var fHtml = '<div class="flowchart" id="flowchart">';
+  phaseOrder.forEach(function(p, pi) {
+    var stages = phaseStages[p] || [];
+    var pDone = pi < curPhaseIdx;
+    var pCur = pi === curPhaseIdx;
+    fHtml += '<div class="phase-column">';
+    fHtml += '<div class="phase-header ' + (pCur ? 'phase-current' : (pDone ? 'phase-done' : 'phase-pending')) + '">' + phaseLabels[p] + '<br><small>[' + p + ']</small></div>';
+    stages.forEach(function(s, si) {
+      var cls = 'stage-node';
+      if (histMap[s]) cls += ' stage-done';
+      else if (s === t.currentStage) cls += ' stage-current';
+      else cls += ' stage-pending';
+
+      var meta = '';
+      if (histMap[s]) {
+        meta = '<div class="stage-meta">✓ ' + histMap[s].date + '</div><div class="stage-meta-sm">' + histMap[s].operator + '</div>';
+      }
+
+      fHtml += '<div class="' + cls + '" onclick="showStageDetail(\'' + taskId + '\',\'' + s + '\')" data-stage="' + s + '">';
+      fHtml += '<div class="stage-dot"></div>';
+      fHtml += '<div class="stage-name">' + s + '</div>';
+      fHtml += meta;
+      fHtml += '</div>';
+
+      if (si < stages.length - 1) {
+        fHtml += '<div class="stage-connector"></div>';
+      }
+    });
+    fHtml += '</div>';
+    if (pi < phaseOrder.length - 1) {
+      fHtml += '<div class="phase-arrow">→</div>';
+    }
+  });
+  fHtml += '</div>';
+
+  var detailHtml = '<div id="stageDetailPanel" class="stage-detail-panel">';
+  detailHtml += '<div class="stage-detail-placeholder">👆 点击上方流程图的任意阶段查看详情</div>';
+  detailHtml += '</div>';
 
   var body = '<div style="margin-bottom:16px"><b>任务基本信息</b></div>' +
     '<table class="review-items-table"><tr><td>任务编号</td><td>' + t.id + '</td><td>委托方</td><td>' + t.client + '</td></tr>' +
@@ -2349,10 +2412,8 @@ function viewTaskDetail(taskId) {
     '<tr><td>检测领域</td><td>' + (DOMAIN_LABELS[t.domain]||t.domain) + '</td><td>任务状态</td><td>' + statusTag(t.status) + '</td></tr>' +
     '<tr><td>主检人</td><td>' + (t.inspector||'待分配') + '</td><td>复核人</td><td>' + (t.reviewer||'待分配') + '</td></tr>' +
     '<tr><td>计划开始</td><td>' + (t.planStart||'-') + '</td><td>计划完成</td><td>' + (t.planEnd||'-') + '</td></tr></table>' +
-    '<div style="margin:16px 0"><b>阶段进度</b></div>' +
-    '<div style="padding:12px;background:#fafafa;border-radius:6px;overflow-x:auto;white-space:nowrap">' + progressHtml + '</div>' +
-    '<div style="margin:16px 0"><b>流转记录</b></div>' +
-    '<table><thead><tr><th>阶段</th><th>日期</th><th>操作人</th><th>详细信息</th></tr></thead><tbody>' + (historyHtml || '<tr><td colspan="4" style="text-align:center;color:#999">暂无流转记录</td></tr>') + '</tbody></table>';
+    '<div style="margin:16px 0"><b>全流程总览</b> <span style="font-size:11px;color:#999;font-weight:normal">（点击阶段查看详情）</span></div>' +
+    fHtml + detailHtml;
 
   showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
   var modal = document.getElementById('modalOverlay');
@@ -2670,6 +2731,60 @@ function openSupervisionForm(supId) {
     
     showModal('监督详情 — ' + s.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
   }
+}
+
+
+// ── 任务详情：流程图阶段点击查看详情 ──
+function showStageDetail(taskId, stageName) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+
+  var histMap = {};
+  t.stageHistory.forEach(function(h) { histMap[h.stage] = h; });
+
+  var h = histMap[stageName];
+  var phaseLabels = { A: '前期准备', B: '方案阶段', C: '实施阶段', D: '问题处理', E: '报告阶段', F: '结项' };
+  var phaseLabel = phaseLabels[STAGE_PHASE[stageName]] || '';
+
+  // 高亮选中节点
+  var nodes = document.querySelectorAll('#flowchart .stage-node');
+  nodes.forEach(function(n) { n.classList.remove('stage-selected'); });
+  var sel = document.querySelector('#flowchart .stage-node[data-stage="' + stageName + '"]');
+  if (sel) { sel.classList.add('stage-selected'); sel.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }
+
+  var html = '<div class="stage-detail-header">📋 ' + stageName + ' <span style="font-size:12px;color:#999">｜' + phaseLabel + ' 阶段</span></div>';
+
+  if (h) {
+    html += '<table class="stage-detail-table">';
+    html += '<tr><td class="sdt-label">状态</td><td><span class="tag tag-green">已完成</span></td></tr>';
+    html += '<tr><td class="sdt-label">完成日期</td><td>' + h.date + '</td></tr>';
+    html += '<tr><td class="sdt-label">操作人</td><td>' + h.operator + '</td></tr>';
+    if (h.inspector) html += '<tr><td class="sdt-label">主检人</td><td>' + h.inspector + '</td></tr>';
+    if (h.reviewer) html += '<tr><td class="sdt-label">复核人</td><td>' + h.reviewer + '</td></tr>';
+    if (h.file) html += '<tr><td class="sdt-label">关联文件</td><td>📄 ' + h.file + '</td></tr>';
+    if (h.result) html += '<tr><td class="sdt-label">评审结果</td><td>' + (h.result === '通过' ? '<span class="tag tag-green">通过</span>' : '<span class="tag tag-red">' + h.result + '</span>') + '</td></tr>';
+    if (h.hasIssue !== undefined) html += '<tr><td class="sdt-label">是否发现问题</td><td>' + (h.hasIssue ? '<span class="tag tag-orange">是</span>' : '<span class="tag tag-green">否</span>') + '</td></tr>';
+    html += '</table>';
+  } else if (stageName === t.currentStage) {
+    html += '<table class="stage-detail-table">';
+    html += '<tr><td class="sdt-label">状态</td><td><span class="tag tag-blue">当前阶段</span> 🔄 待处理</td></tr>';
+    html += '<tr><td class="sdt-label">所属阶段</td><td>' + phaseLabel + '</td></tr>';
+    html += '</table>';
+    html += '<div style="margin-top:12px;padding:12px;background:#e6f7ff;border-radius:6px;border-left:3px solid #1890ff">';
+    html += '<b>💡 操作提示：</b>此阶段为当前所处位置，请在任务列表中使用对应按钮推进流程。';
+    html += '</div>';
+  } else {
+    html += '<table class="stage-detail-table">';
+    html += '<tr><td class="sdt-label">状态</td><td><span style="color:#bbb">尚未到达</span></td></tr>';
+    html += '<tr><td class="sdt-label">所属阶段</td><td>' + phaseLabel + '</td></tr>';
+    html += '</table>';
+    html += '<div style="margin-top:12px;padding:12px;background:#fafafa;border-radius:6px;color:#999">';
+    html += '⏳ 任务推进至此阶段后将自动激活。';
+    html += '</div>';
+  }
+
+  var panel = document.getElementById('stageDetailPanel');
+  if (panel) panel.innerHTML = html;
 }
 
 function confirmSupervision(supId) {
