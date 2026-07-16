@@ -359,7 +359,7 @@ var DELEGATES = [
     contact: '陈主任', phone: '13905710001', address: '杭州市西湖区',
     objNameVer: '政务云安全渗透测试Q3 (V1.0)', testContent: '对浙江省政务云平台Q3季度渗透测试：漏洞扫描、渗透攻击、权限提升、数据泄露风险检测',
     domains: ['AQ'], standards: 'GB/T 22239-2019', deadline: '2026-09-30',
-    specialReq: '需签署保密协议，测试时间窗口为周末凌晨', status: '已退回', createDate: '2026-07-08', creator: '张工',
+    specialReq: '需签署保密协议，测试时间窗口为周末凌晨', status: '不通过', createDate: '2026-07-08', creator: '张工',
     attachments: ['政务云渗透测试技术要求_v2.pdf', '保密协议_已签署.pdf'],
     approvers: [
       { name: '张工', role: '质量负责人', result: '通过', comment: '', items: { staff: '是', device: '是', env: '是', delivery: '是', sample: '是', outsource: '否', risk: '否', scope: '是' } },
@@ -368,7 +368,7 @@ var DELEGATES = [
     ], approvalConclusion: '不通过'
   }
 ];
-var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过': 'green', '已退回': 'red' };
+var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过': 'green', '不通过': 'red' };
 
 // ============================================================
 // 导航
@@ -459,7 +459,7 @@ function navTo(id) {
 // 工具函数
 // ============================================================
 function statusTag(s) {
-  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green', '进行中': 'green', '已完成': 'blue', '已终止': 'red', '草稿': 'default', '待审批': 'default', '审批中': 'blue', '已通过': 'green', '已退回': 'red' };
+  var m = { '通过': 'green', '评审中': 'orange', '不通过': 'red', '未提交': 'default', '待处理': 'orange', '已处理': 'green', '进行中': 'green', '已完成': 'blue', '已终止': 'red', '草稿': 'default', '待审批': 'default', '审批中': 'blue', '已通过': 'green', '不通过': 'red' };
   return '<span class="tag tag-' + (m[s] || 'blue') + '">' + s + '</span>';
 }
 
@@ -1554,7 +1554,7 @@ function renderCommissionList() {
       ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看审批进度</button> ' + detailBtn;
     } else if (d.status === '已通过') {
       ops = '<span style="color:#52c41a;font-size:12px">✓已通过</span> ' + detailBtn;
-    } else if (d.status === '已退回') {
+    } else if (d.status === '不通过') {
       ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看审批进度</button> ' +
             '<button class="btn btn-warning btn-sm" onclick="refireCommission(\'' + d.id + '\')">重新发起</button> ' + detailBtn;
     }
@@ -1594,7 +1594,7 @@ function filterBarCommission() {
     '<select id="cf_domain" onchange="filterCommissions()"><option value="">检测领域-全部</option>' +
       DOMAINS.map(function(d) { return '<option value="' + d + '">' + DOMAIN_LABELS[d] + ' (' + d + ')</option>'; }).join('') +
     '</select>' +
-    '<select id="cf_status" onchange="filterCommissions()"><option value="">委托状态-全部</option><option value="待审批">待审批</option><option value="审批中">审批中</option><option value="已通过">已通过</option><option value="已退回">已退回</option></select>' +
+    '<select id="cf_status" onchange="filterCommissions()"><option value="">委托状态-全部</option><option value="待审批">待审批</option><option value="审批中">审批中</option><option value="已通过">已通过</option><option value="不通过">不通过</option></select>' +
     '<button class="btn btn-primary" onclick="showCommissionForm()">新建委托</button>' +
     '</div>';
 }
@@ -1630,7 +1630,9 @@ function showCommissionForm(editId) {
       return '<option value="' + c.id + '"' + (init.contractId === c.id ? ' selected' : '') + '>' + c.id + ' - ' + c.name + '</option>';
     }).join('');
 
+  var newId = editId || generateDelegateId();
   var body = makeForm([
+    { l: '委托编号', r: 1, h: '<input id="cf_id" value="' + newId + '" placeholder="请输入委托编号（需唯一）" style="font-family:monospace"><br><small style="color:#999">可手动修改，新增和编辑均可自定义，保存时校验唯一性</small>' },
     { l: '关联合同', r: 1, h: '<select id="cf_contract" onchange="onContractSelect()">' + contractOpts + '</select>' },
     { l: '委托方名称', r: 1, h: '<input id="cf_client2" value="' + (init.client || '') + '"' + (init.contractId ? ' readonly style="background:#f5f5f5"' : '') + ' placeholder="请输入委托方名称">' },
     { l: '联系人', r: 1, h: '<input id="cf_contact" value="' + (init.contact || '') + '" placeholder="请输入联系人">' },
@@ -1701,7 +1703,6 @@ function saveCommissionDraft(editId) {
     DELEGATES.forEach(function(d, i) { if (d.id === editId) idx = i; });
     if (idx >= 0) { DELEGATES[idx] = data; }
   } else {
-    data.id = generateDelegateId();
     DELEGATES.push(data);
     updateContractDelegateCount(data.contractId);
   }
@@ -1716,8 +1717,8 @@ function submitCommission(editId) {
 
   if (editId) {
     var d = DELEGATES.filter(function(x) { return x.id === editId; })[0];
-    if (d && d.status !== '待审批' && d.status !== '已退回') {
-      alert('仅待审批/已退回状态可提交审批');
+    if (d && d.status !== '待审批' && d.status !== '不通过') {
+      alert('仅待审批/不通过状态可提交审批');
       return;
     }
   }
@@ -1731,7 +1732,6 @@ function submitCommission(editId) {
     DELEGATES.forEach(function(d, i) { if (d.id === editId) idx = i; });
     if (idx >= 0) { DELEGATES[idx] = data; }
   } else {
-    data.id = generateDelegateId();
     DELEGATES.push(data);
     updateContractDelegateCount(data.contractId);
   }
@@ -1797,6 +1797,12 @@ function collectCommissionForm(editId) {
   var client = document.getElementById('cf_client2').value.trim();
   if (!client) { alert('请输入委托方名称'); return null; }
 
+  var delegateId = document.getElementById('cf_id').value.trim();
+  if (!delegateId) { alert('请输入委托编号'); return null; }
+  // 唯一性校验：排除自身编辑场景
+  var dup = DELEGATES.filter(function(d) { return d.id === delegateId && d.id !== (editId || ''); });
+  if (dup.length > 0) { alert('委托编号已存在：' + delegateId + '，请使用其他编号'); return null; }
+
   var contractId = document.getElementById('cf_contract').value;
   var existing = editId ? DELEGATES.filter(function(x) { return x.id === editId; })[0] : null;
 
@@ -1806,7 +1812,7 @@ function collectCommissionForm(editId) {
   if (attFile && attFile.files && attFile.files[0]) { attachments.push(attFile.files[0].name); }
 
   return {
-    id: existing ? existing.id : '',
+    id: delegateId,
     contractId: contractId || (existing ? existing.contractId : ''),
     client: client,
     contact: document.getElementById('cf_contact').value.trim(),
@@ -1855,7 +1861,7 @@ function deleteCommission(id) {
 function refireCommission(id) {
   var d = DELEGATES.filter(function(x) { return x.id === id; })[0];
   if (!d) return;
-  if (d.status !== '已退回' && d.approvalConclusion !== '不通过') { alert('仅可重新发起审批不通过的委托'); return; }
+  if (d.status !== '不通过' && d.approvalConclusion !== '不通过') { alert('仅可重新发起审批不通过的委托'); return; }
   if (!confirm('确定基于 ' + id + ' 重新发起委托吗？将生成新委托编号，原审批记录不再保留。')) return;
 
   var newId = generateDelegateId();
@@ -1929,7 +1935,7 @@ function viewCommissionDetail(delegateId) {
     '<table class="ws-form-table">' + rows + '</table>',
     '<button class="btn btn-default" onclick="closeModal()">关闭</button>' +
     (d.status === '审批中' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批进度</button>' : '') +
-    (d.status === '已退回' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批工单</button>' : '')
+    (d.status === '不通过' ? '<button class="btn btn-primary" onclick="closeModal();viewApprovalWorksheet(\'' + delegateId + '\')">查看审批工单</button>' : '')
   );
 }
 
@@ -1944,7 +1950,7 @@ function viewApprovalWorksheet(delegateId) {
   var leftHtml = '<div class="ws-left">' + delegateDetailTable(d) + '</div>';
   var rightHtml;
 
-  if (d.status === '已通过' || d.status === '已退回') {
+  if (d.status === '已通过' || d.status === '不通过') {
     // 已完成：展示各审批人明细（对齐合同评审样式）
     var tables = d.approvers.map(function(av) {
       var rows = ITEM_KEYS.map(function(k) {
@@ -2038,14 +2044,14 @@ function finalizeApproval(delegateId) {
   }
   var allPass = d.approvers.every(function(av) { return av.result === '通过'; });
   d.approvalConclusion = allPass ? '通过' : '不通过';
-  d.status = allPass ? '已通过' : '已退回';
+  d.status = allPass ? '已通过' : '不通过';
   closeModal();
   renderNav();
   if (allPass) {
     alert('全员通过！委托审批已通过，通知创建人新建检测任务。');
   } else {
     var failNames = d.approvers.filter(function(av) { return av.result === '不通过'; }).map(function(av) { return av.name; }).join('、');
-    alert('审批不通过！不通过人员：' + failNames + '。委托已退回。');
+    alert('审批不通过！不通过人员：' + failNames + '。委托不通过。');
   }
   navTo('commission');
 }
@@ -2074,7 +2080,7 @@ function pageApproval() {
     var ops = '';
     if (d.status === '审批中') {
       ops = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看审批进度</button>';
-    } else if (d.status === '已通过' || d.status === '已退回') {
+    } else if (d.status === '已通过' || d.status === '不通过') {
       ops = '<button class="btn btn-default btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看详情</button>';
     }
 
