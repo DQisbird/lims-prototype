@@ -2810,28 +2810,9 @@ function renderSampleTableRO(taskId) {
 }
 
 function pageSample() {
-  var focusId = sampleFocusTask;
-  sampleFocusTask = null; // 消费一次
+  sampleFocusTask = null;
 
   var html = '';
-
-  // 如果从任务页跳转过来，显示任务信息头部
-  if (focusId) {
-    var ft = TASKS.filter(function(x) { return x.id === focusId; })[0];
-    if (ft) {
-      var fsCount = SAMPLES.filter(function(s) { return s.taskId === focusId; }).length;
-      html += '<div class="card" style="margin-bottom:16px;background:#e6f7ff;border:1px solid #91d5ff">';
-      html += '<div class="card-title">📋 当前任务 — ' + ft.id + '</div>';
-      html += '<table class="stage-detail-table">';
-      html += '<tr><td class="sdt-label">项目名称</td><td>' + ft.proj + '</td><td class="sdt-label">客户</td><td>' + ft.client + '</td></tr>';
-      html += '<tr><td class="sdt-label">当前阶段</td><td><span class="tag tag-blue">' + ft.currentStage + '</span></td><td class="sdt-label">已接收样品</td><td><b>' + fsCount + '</b> 个</td></tr>';
-      html += '</table>';
-      if (ft.currentStage === '样品接收') {
-        html += '<div style="margin-top:8px;font-size:12px;color:#fa8c16">💡 请在此页面完成样品接收，确认后将自动推进至「任务派工」阶段</div>';
-      }
-      html += '</div>';
-    }
-  }
 
   // 搜索筛选栏
   html += '<div class="card" style="margin-bottom:16px">';
@@ -2912,7 +2893,7 @@ function pageSampleRefresh(preservePage) {
   if (totalCount === 0) {
     html += '<div class="card" style="text-align:center;padding:60px;color:#bbb">📭 没有匹配的样品记录</div>';
   } else {
-    // 工具栏：统计 + 新增按钮 + 确认接收
+    // 工具栏：统计 + 新增样品
     html += '<div class="card" style="margin-bottom:12px;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px">';
     html += '<b>统计：</b>';
     Object.keys(statusCounts).sort().forEach(function(st) {
@@ -2920,18 +2901,18 @@ function pageSampleRefresh(preservePage) {
       html += '<span class="tag ' + cls + '">' + st + ' ×' + statusCounts[st] + '</span>';
     });
     html += '<span style="color:#ccc;margin:0 4px">|</span>';
-    // 新增样品：下拉选任务
-    html += '<select id="sp_newTask" class="form-input" style="width:200px;font-size:12px">';
-    TASKS.forEach(function(t) {
-      html += '<option value="' + t.id + '">' + t.id + ' — ' + t.proj + '</option>';
-    });
+    // 新增样品：下拉选未完成任务
+    html += '<select id="sp_newTask" class="form-input" style="width:220px;font-size:12px">';
+    var openTasks = TASKS.filter(function(t) { return t.status !== '已完成' && t.status !== '已终止'; });
+    if (openTasks.length === 0) {
+      html += '<option value="">无进行中的任务</option>';
+    } else {
+      openTasks.forEach(function(t) {
+        html += '<option value="' + t.id + '">' + t.id + ' — ' + t.proj + '</option>';
+      });
+    }
     html += '</select>';
-    html += '<button class="btn btn-primary btn-sm" onclick="openSampleForm(document.getElementById(\'sp_newTask\').value)">+ 新增样品</button>';
-    // 确认接收按钮：仅样品接收阶段的任务
-    var receivingTasks = TASKS.filter(function(t) { return t.currentStage === '样品接收'; });
-    receivingTasks.forEach(function(rt) {
-      html += '<button class="btn btn-success btn-sm" onclick="confirmReceiveSample(\'' + rt.id + '\')" style="margin-left:4px">✅ 确认接收 ' + rt.id.split('-').pop() + '</button>';
-    });
+    html += '<button class="btn btn-primary btn-sm" onclick="var v=document.getElementById(\'sp_newTask\').value;if(v)openSampleForm(v)">+ 新增样品</button>';
     html += '</div>';
 
     // 单一表格
