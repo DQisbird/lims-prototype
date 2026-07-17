@@ -2310,7 +2310,9 @@ function pageTask() {
 
   function rowHtml(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
-    var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
+    var inspectorDisplay = (t.leaders && t.leaders.length > 0) ? t.leaders[0] : (t.inspector || '<span style="color:#999">待分配</span>');
+    if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
+    var deadlineDisplay = t.deadline || t.planEnd || '-';
     var ops = '';
     // 阶段操作按钮（仅进行中任务显示）
     if (t.status === '进行中') {
@@ -2355,7 +2357,7 @@ function pageTask() {
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
-      '<td>' + (t.planEnd||'-') + '</td><td style="white-space:nowrap">' + ops + '</td></tr>';
+      '<td>' + deadlineDisplay + '</td><td style="white-space:nowrap">' + ops + '</td></tr>';
   }
 
   function refreshTaskTable() {
@@ -2399,7 +2401,7 @@ function pageTask() {
       '<span id="task_count" style="margin-left:auto;color:#666;font-size:13px">共 <b>' + taskFiltered.length + '</b> 条</span>' +
     '</div>' +
     '<table><thead><tr>' +
-    '<th>任务编号</th><th>关联委托</th><th>委托方</th><th>检测领域</th><th>检测对象</th><th>当前阶段</th><th>主检人</th><th>任务状态</th><th>计划完成</th><th>操作</th>' +
+    '<th>任务编号</th><th>关联委托</th><th>委托方</th><th>检测领域</th><th>检测对象</th><th>当前阶段</th><th>负责人</th><th>任务状态</th><th>完成期限</th><th>操作</th>' +
     '</tr></thead><tbody id="task_tbody">' + initialRows + '</tbody></table></div>';
 }
 
@@ -2416,7 +2418,9 @@ function switchTaskTab(tab) {
   taskFiltered = base;
   var rows = taskFiltered.map(function(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
-    var inspectorDisplay = t.inspector || '<span style="color:#999">待分配</span>';
+    var inspectorDisplay = (t.leaders && t.leaders.length > 0) ? t.leaders[0] : (t.inspector || '<span style="color:#999">待分配</span>');
+    if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
+    var deadlineDisplay = t.deadline || t.planEnd || '-';
     var ops = '';
     if (t.status === '进行中') {
       if (t.currentStage === '样品接收') {
@@ -2458,7 +2462,7 @@ function switchTaskTab(tab) {
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
-      '<td>' + (t.planEnd||'-') + '</td><td style="white-space:nowrap">' + ops + '</td></tr>';
+      '<td>' + deadlineDisplay + '</td><td style="white-space:nowrap">' + ops + '</td></tr>';
   }).join('');
   var tbody = document.getElementById('task_tbody');
   if (tbody) tbody.innerHTML = rows || '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px">无匹配任务</td></tr>';
@@ -2540,8 +2544,8 @@ function viewTaskDetail(taskId) {
   infoRows += '<tr><td class="sdt-label">检测领域</td><td>' + (DOMAIN_LABELS[t.domain]||t.domain) + '</td><td class="sdt-label">当前阶段</td><td>' + t.currentStage + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">项目名称</td><td>' + t.proj + '</td><td class="sdt-label">检测对象</td><td>' + t.obj + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">委托方</td><td>' + t.client + '</td><td class="sdt-label">创建日期</td><td>' + (t.createDate||'-') + '</td></tr>';
-  infoRows += '<tr><td class="sdt-label">主检人</td><td>' + (t.inspector||'<span style="color:#bbb">待分配</span>') + '</td><td class="sdt-label">复核人</td><td>' + (t.reviewer||'<span style="color:#bbb">待分配</span>') + '</td></tr>';
-  infoRows += '<tr><td class="sdt-label">计划开始</td><td>' + (t.planStart||'-') + '</td><td class="sdt-label">计划完成</td><td>' + (t.planEnd||'-') + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">项目负责人</td><td>' + (t.leaders ? t.leaders.join('、') : (t.inspector || '<span style="color:#bbb">待分配</span>')) + '</td><td class="sdt-label">测试工程师</td><td>' + (t.engineers ? t.engineers.join('、') : (t.reviewer || '<span style="color:#bbb">待分配</span>')) + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">完成期限</td><td>' + (t.deadline || t.planEnd || '-') + '</td><td class="sdt-label">计划时间</td><td>' + (t.planStart||'-') + ' ~ ' + (t.planEnd||'-') + '</td></tr>';
 
   // 合同评审信息
   infoRows += '<tr class="info-section"><td colspan="4">📝 合同评审信息 ' + (rev ? '<span style="font-size:11px;font-weight:normal;color:#52c41a">（' + rev.id + '）</span>' : '<span style="font-size:11px;font-weight:normal;color:#faad14">（未关联）</span>') + '</td></tr>';
@@ -2931,15 +2935,27 @@ function openTaskAssignModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '任务派工') return;
   
-  // 可用检测人员（模拟）
-  var inspectors = ['王工', '李工', '赵工', '孙工', '钱工', '陈工'];
-  var iOpts = '<option value="">-- 请选择 --</option>' + inspectors.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
+  // 可用人员
+  var persons = ['王工', '李工', '赵工', '孙工', '钱工', '陈工'];
   
-  var body = '<div class="form-group"><label>主检人员<span style="color:red">*</span></label><div class="form-ctl"><select id="assign_inspector" style="width:100%">' + iOpts + '</select></div></div>' +
-    '<div class="form-group"><label>复核人员<span style="color:red">*</span></label><div class="form-ctl"><select id="assign_reviewer" style="width:100%">' + iOpts + '</select></div></div>' +
-    '<div class="form-group"><label>计划开始日期</label><div class="form-ctl"><input type="date" id="assign_planStart" value="' + (t.planStart||'') + '"></div></div>' +
-    '<div class="form-group"><label>计划完成日期</label><div class="form-ctl"><input type="date" id="assign_planEnd" value="' + (t.planEnd||'') + '"></div></div>' +
-    '<div style="color:#fa8c16;font-size:12px;margin-top:6px">⚠ 校验：主检人必须具备该领域授权；主检人和复核人不能同一人</div>';
+  // 项目负责人（多选checkbox）
+  var leaderCbs = persons.map(function(n) {
+    return '<label style="display:inline-block;margin-right:12px;font-weight:normal"><input type="checkbox" name="assign_leader" value="' + n + '"> ' + n + '</label>';
+  }).join('');
+  
+  // 测试工程师（多选checkbox）
+  var engCbs = persons.map(function(n) {
+    return '<label style="display:inline-block;margin-right:12px;font-weight:normal"><input type="checkbox" name="assign_engineer" value="' + n + '"> ' + n + '</label>';
+  }).join('');
+
+  // 完成期限（默认当天，可自定义）
+  var now = new Date();
+  var today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  
+  var body = '<div class="form-group"><label>项目负责人<span style="color:red">*</span>（可多选）</label><div class="form-ctl" style="padding:6px 0">' + leaderCbs + '</div></div>' +
+    '<div class="form-group"><label>测试工程师<span style="color:red">*</span>（可多选）</label><div class="form-ctl" style="padding:6px 0">' + engCbs + '</div></div>' +
+    '<div class="form-group"><label>完成期限<span style="color:red">*</span></label><div class="form-ctl"><input id="assign_deadline" style="width:100%" value="' + today + '" placeholder="如：2026-08-15 或 2026年8月底"></div></div>' +
+    '<div style="color:#999;font-size:12px;margin-top:6px">💡 完成期限支持自由格式，默认今天（' + today + '）</div>';
 
   showModal('任务派工 — ' + t.id, body,
     '<button class="btn btn-primary" onclick="confirmTaskAssign(\'' + taskId + '\')">确认派工</button>' +
@@ -2950,25 +2966,39 @@ function openTaskAssignModal(taskId) {
 function confirmTaskAssign(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t) return;
-  var inspector = document.getElementById('assign_inspector').value;
-  var reviewer = document.getElementById('assign_reviewer').value;
-  var planStart = document.getElementById('assign_planStart').value;
-  var planEnd = document.getElementById('assign_planEnd').value;
   
-  if (!inspector) { alert('请选择主检人员'); return; }
-  if (!reviewer) { alert('请选择复核人员'); return; }
-  if (inspector === reviewer) { alert('主检人和复核人不能同一人！'); return; }
+  // 收集项目负责人
+  var leaders = [];
+  var leaderCbs = document.querySelectorAll('input[name="assign_leader"]:checked');
+  leaderCbs.forEach(function(cb) { leaders.push(cb.value); });
+  
+  // 收集测试工程师
+  var engineers = [];
+  var engCbs = document.querySelectorAll('input[name="assign_engineer"]:checked');
+  engCbs.forEach(function(cb) { engineers.push(cb.value); });
+  
+  var deadline = document.getElementById('assign_deadline').value.trim();
+  
+  if (leaders.length === 0) { alert('请至少选择一位项目负责人'); return; }
+  if (engineers.length === 0) { alert('请至少选择一位测试工程师'); return; }
+  if (!deadline) { alert('请填写完成期限'); return; }
+  
+  // 检查负责人和工程师不能重叠
+  var overlap = leaders.filter(function(l) { return engineers.indexOf(l) >= 0; });
+  if (overlap.length > 0) { alert('以下人员同时被选为负责人和工程师，请调整：' + overlap.join('、')); return; }
   
   var now = new Date();
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-  t.inspector = inspector;
-  t.reviewer = reviewer;
-  if (planStart) t.planStart = planStart;
-  if (planEnd) t.planEnd = planEnd;
-  t.stageHistory.push({ stage: '任务派工', date: ds, operator: LOGIN_USER, inspector: inspector, reviewer: reviewer });
+  
+  t.leaders = leaders;
+  t.engineers = engineers;
+  t.deadline = deadline;
+  t.inspector = engineers[0]; // 兼容旧字段，取第一位测试工程师
+  
+  t.stageHistory.push({ stage: '任务派工', date: ds, operator: LOGIN_USER, leaders: leaders, engineers: engineers, deadline: deadline });
   t.currentStage = '测试方案';
   
-  alert('【原型演示】派工完成！\n主检人：' + inspector + ' | 复核人：' + reviewer + '\n进入下一阶段：测试方案（B.方案阶段）');
+  alert('【原型演示】派工完成！\n项目负责人：' + leaders.join('、') + '\n测试工程师：' + engineers.join('、') + '\n完成期限：' + deadline + '\n进入下一阶段：测试方案（B.方案阶段）');
   closeModal();
   renderPage();
 }
@@ -3547,6 +3577,9 @@ function showStageDetail(taskId, stageName) {
     html += '<tr><td class="sdt-label">操作人' + (stageName === '样品接收' ? '（接收人）' : '') + '</td><td>' + h.operator + '</td></tr>';
     if (h.inspector) html += '<tr><td class="sdt-label">主检人</td><td>' + h.inspector + '</td></tr>';
     if (h.reviewer) html += '<tr><td class="sdt-label">复核人</td><td>' + h.reviewer + '</td></tr>';
+    if (h.leaders) html += '<tr><td class="sdt-label">项目负责人</td><td>' + h.leaders.join('、') + '</td></tr>';
+    if (h.engineers) html += '<tr><td class="sdt-label">测试工程师</td><td>' + h.engineers.join('、') + '</td></tr>';
+    if (h.deadline) html += '<tr><td class="sdt-label">完成期限</td><td>' + h.deadline + '</td></tr>';
     if (h.file) html += '<tr><td class="sdt-label">关联文件</td><td>📄 ' + h.file + '</td></tr>';
     if (h.result) html += '<tr><td class="sdt-label">评审结果</td><td>' + (h.result === '通过' ? '<span class="tag tag-green">通过</span>' : '<span class="tag tag-red">' + h.result + '</span>') + '</td></tr>';
     if (h.hasIssue !== undefined) html += '<tr><td class="sdt-label">是否发现问题</td><td>' + (h.hasIssue ? '<span class="tag tag-orange">是</span>' : '<span class="tag tag-green">否</span>') + '</td></tr>';
