@@ -2488,7 +2488,7 @@ function viewTaskDetail(taskId) {
     '<div style="margin:16px 0"><b>全流程总览</b> <span style="font-size:11px;color:#999;font-weight:normal">（点击阶段查看详情）</span></div>' +
     fHtml + detailHtml;
 
-  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
+  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button> <button class="btn btn-primary" onclick="showSampleInline(\'' + taskId + '\')">🧪 管理样品</button>');
   var modal = document.getElementById('modalOverlay');
   var modalEl = modal.querySelector('.modal');
   modalEl.classList.add('modal-wide');
@@ -2647,8 +2647,11 @@ function openSampleForm(taskId, sampleId) {
 }
 
 function closeSampleForm(taskId) {
-  // Return to sample receive view
-  stageReceiveSample(taskId);
+  if (document.getElementById('stageDetailPanel')) {
+    showSampleInline(taskId);
+  } else {
+    stageReceiveSample(taskId);
+  }
 }
 
 function saveSample() {
@@ -2677,7 +2680,6 @@ function saveSample() {
   }
 
   if (sampleId) {
-    // Edit existing
     var idx = -1;
     SAMPLES.forEach(function(x, i) { if (x.id === sampleId) idx = i; });
     if (idx >= 0) SAMPLES[idx] = data;
@@ -2685,16 +2687,24 @@ function saveSample() {
     SAMPLES.push(data);
   }
 
-  // Refresh the sample receive view
-  closeModal();
-  stageReceiveSample(taskId);
+  // Smart refresh: in viewTaskDetail or standalone modal?
+  if (document.getElementById('stageDetailPanel')) {
+    showSampleInline(taskId);
+  } else {
+    closeModal();
+    stageReceiveSample(taskId);
+  }
 }
 
 function deleteSample(taskId, sampleId) {
   if (!confirm('确定要删除该样品吗？此操作不可撤销。')) return;
   SAMPLES = SAMPLES.filter(function(s) { return s.id !== sampleId; });
-  closeModal();
-  stageReceiveSample(taskId);
+  if (document.getElementById('stageDetailPanel')) {
+    showSampleInline(taskId);
+  } else {
+    closeModal();
+    stageReceiveSample(taskId);
+  }
 }
 
 function confirmReceiveSample(taskId) {
@@ -3005,9 +3015,29 @@ function showStageDetail(taskId, stageName) {
     html += '</div>';
   }
 
+  // 样品接收阶段：追加样品管理面板
+  if (stageName === '样品接收') {
+    var taskSamples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+    html += '<div style="margin-top:16px"><div style="font-weight:bold;margin-bottom:8px">🧪 样品清单（' + taskSamples.length + ' 个）</div>';
+    html += '<button class="btn btn-primary btn-sm" style="margin-bottom:8px" onclick="showSampleInline(\'' + taskId + '\')">+ 管理样品</button>';
+    html += '<div id="sampleInlineTable">' + renderSampleTable(taskId) + '</div></div>';
+  }
+
   var panel = document.getElementById('stageDetailPanel');
   if (panel) panel.innerHTML = html;
 }
+function showSampleInline(taskId) {
+  var panel = document.getElementById('stageDetailPanel');
+  if (!panel) return;
+  var taskSamples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+  var html = '<div class="stage-detail-header">🧪 样品管理 <span style="font-size:12px;color:#999">｜共 ' + taskSamples.length + ' 个样品</span></div>';
+  html += '<div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="openSampleForm(\'' + taskId + '\')">+ 新增样品</button></div>';
+  html += '<div id="sampleInlineTable">' + renderSampleTable(taskId) + '</div>';
+  panel.innerHTML = html;
+  var nodes = document.querySelectorAll('#flowchart .stage-node');
+  nodes.forEach(function(n) { n.classList.remove('stage-selected'); });
+}
+
 
 function confirmSupervision(supId) {
   alert('【原型演示】监督工单提交成功！\n（实际开发中此处会保存监督数据并更新监督状态）');
