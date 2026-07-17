@@ -2858,13 +2858,7 @@ function pageSample() {
   container.setAttribute('data-sp-html', html);
   container.innerHTML = html;
 
-  // 聚焦模式：自动展开目标任务组
-  if (focusId) {
-    setTimeout(function() {
-      var tg = document.getElementById('sp_taskGroup_' + focusId.replace(/[^a-zA-Z0-9]/g, '_'));
-      if (tg) { tg.classList.add('open'); tg.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-    }, 100);
-  }
+  // 聚焦模式：滚动到第一个表格行（统一列表无需展开）
 
   pageSampleRefresh();
 }
@@ -2874,7 +2868,7 @@ function pageSampleRefresh(preservePage) {
   var source = ((document.getElementById('sp_filter_source')||{}).value||'');
   var type = ((document.getElementById('sp_filter_type')||{}).value||'');
 
-  if (!preservePage) sp_page = {};
+  if (!preservePage) sp_page = 1;
 
   var allSamples = SAMPLES.filter(function(s) {
     if (keyword && s.sampleNo.toLowerCase().indexOf(keyword)===-1 && s.name.toLowerCase().indexOf(keyword)===-1) return false;
@@ -2887,71 +2881,48 @@ function pageSampleRefresh(preservePage) {
     return true;
   });
 
-  var groups = {};
-  allSamples.forEach(function(s) {
-    if (!groups[s.taskId]) groups[s.taskId] = [];
-    groups[s.taskId].push(s);
-  });
-
-  var taskIds = Object.keys(groups);
-  taskIds.sort(function(a, b) {
-    var tA = TASKS.filter(function(x){ return x.id===a; })[0];
-    var tB = TASKS.filter(function(x){ return x.id===b; })[0];
-    return (tB?tB.createDate:'') > (tA?tA.createDate:'') ? 1 : -1;
+  // 按任务创建时间降序 → 样品编号升序
+  allSamples.sort(function(a, b) {
+    var tA = TASKS.filter(function(x){ return x.id===a.taskId; })[0];
+    var tB = TASKS.filter(function(x){ return x.id===b.taskId; })[0];
+    if ((tB?tB.createDate:'') !== (tA?tA.createDate:'')) return (tB?tB.createDate:'') > (tA?tA.createDate:'') ? 1 : -1;
+    return a.sampleNo > b.sampleNo ? 1 : -1;
   });
 
   var totalCount = allSamples.length;
   var totalEl = document.getElementById('sp_totalCount');
   if (totalEl) totalEl.textContent = totalCount;
 
+  // 全局状态统计
+  var statusCounts = {};
+  allSamples.forEach(function(s) { statusCounts[s.status] = (statusCounts[s.status] || 0) + 1; });
+  var statusColors = {'已接收':'tag-green','检测中':'tag-blue','已归还':'tag-default','异常':'tag-red','待接收':'tag-orange'};
+
+  // 全局分页
+  var curPage = sp_page || 1;
+  var totalPages = Math.max(1, Math.ceil(totalCount / sp_pageSize));
+  if (curPage > totalPages) curPage = totalPages;
+  if (curPage < 1) curPage = 1;
+  sp_page = curPage;
+  var startIdx = (curPage - 1) * sp_pageSize;
+  var pageSamples = allSamples.slice(startIdx, startIdx + sp_pageSize);
+
   var html = '';
-  if (taskIds.length === 0) {
+
+  if (totalCount === 0) {
     html += '<div class="card" style="text-align:center;padding:60px;color:#bbb">📭 没有匹配的样品记录</div>';
-  }
-
-  taskIds.forEach(function(tid) {
-    var t = TASKS.filter(function(x) { return x.id === tid; })[0];
-    var samples = groups[tid];
-    var n = samples.length;
-    var gid = 'sp_task_' + tid.replace(/[^a-zA-Z0-9]/g, '_');
-    var isReceiving = t && t.currentStage === '样品接收';
-
-    // 按状态统计
-    var statusCounts = {};
-    samples.forEach(function(s) { statusCounts[s.status] = (statusCounts[s.status] || 0) + 1; });
-    var statusTags = '';
-    var statusColors = {'已接收':'tag-green','检测中':'tag-blue','已归还':'tag-default','异常':'tag-red','待接收':'tag-orange'};
+  } else {
+    // 状态统计标签
+    html += '<div class="card" style="margin-bottom:12px;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px">';
+    html += '<b>统计：</b>';
     Object.keys(statusCounts).sort().forEach(function(st) {
       var cls = statusColors[st] || 'tag-default';
-      statusTags += '<span class="tag ' + cls + '" style="margin-left:3px;font-size:11px">' + st + ' ×' + statusCounts[st] + '</span>';
+      html += '<span class="tag ' + cls + '">' + st + ' ×' + statusCounts[st] + '</span>';
     });
-
-    // 分页
-    var curPage = sp_page[tid] || 1;
-    var totalPages = Math.max(1, Math.ceil(n / sp_pageSize));
-    if (curPage > totalPages) curPage = totalPages;
-    if (curPage < 1) curPage = 1;
-    sp_page[tid] = curPage;
-    var startIdx = (curPage - 1) * sp_pageSize;
-    var pageSamples = samples.slice(startIdx, startIdx + sp_pageSize);
-    var pageN = pageSamples.length;
-
-    html += '<div class="card" id="' + gid + '" style="margin-bottom:16px;padding:0;overflow:auto">';
-    html += '<div style="padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">';
-    html += '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">';
-    html += '<b style="font-size:14px">' + (t?t.id:'未知任务') + '</b>';
-    html += ' <span style="color:#888;font-size:12px;margin-left:4px">' + (t?t.client:'') + ' — ' + (t?t.proj:'') + '</span>';
-    if (isReceiving) html += ' <span class="tag tag-orange" style="margin-left:4px">待接收</span>';
-    html += '<span style="color:#aaa;font-size:11px;margin-left:4px">|</span>';
-    html += statusTags;
     html += '</div>';
-    html += '<div>';
-    html += '<button class="btn btn-primary btn-sm" onclick="openSampleForm(\'' + tid + '\')">+ 新增样品</button>';
-    if (isReceiving) {
-      html += ' <button class="btn btn-success btn-sm" onclick="confirmReceiveSample(\'' + tid + '\')">✅ 确认接收</button>';
-    }
-    html += '</div></div>';
 
+    // 单一表格
+    html += '<div class="card" style="padding:0;overflow:auto">';
     html += '<table style="margin:0">';
     html += '<thead><tr>';
     html += '<th style="min-width:210px">项目编号</th><th style="min-width:160px">项目名称</th>';
@@ -2959,52 +2930,74 @@ function pageSampleRefresh(preservePage) {
     html += '<th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th>';
     html += '<th>状态</th><th>接收日期</th><th>操作</th></tr></thead><tbody>';
 
-    pageSamples.forEach(function(s, idx) {
-      html += '<tr>';
-      if (idx === 0) {
-        html += '<td rowspan="' + pageN + '" style="vertical-align:middle;background:#fafafa;font-weight:bold;border-right:2px solid #e8e8e8">' + (t?t.id:'-') + '</td>';
-        html += '<td rowspan="' + pageN + '" style="vertical-align:middle;background:#fafafa;border-right:2px solid #e8e8e8">' + (t?t.proj:'-') + '</td>';
+    var prevTaskId = null;
+    var rowspanStart = 0;
+    var i = 0;
+
+    // 计算每行 rowspan：连续相同 taskId 的样品数
+    function sameTaskRun(fromIdx) {
+      var tid = pageSamples[fromIdx].taskId;
+      var cnt = 0;
+      for (var j = fromIdx; j < pageSamples.length; j++) {
+        if (pageSamples[j].taskId === tid) cnt++; else break;
       }
-      html += '<td>' + s.sampleNo + '</td>';
-      html += '<td>' + s.name + '</td>';
-      html += '<td><span class="tag tag-blue">' + (s.sampleType||'-') + '</span></td>';
-      html += '<td><span class="tag tag-orange">' + (s.source||'-') + '</span></td>';
-      html += '<td>' + s.spec + '</td>';
-      html += '<td>' + s.qty + '</td>';
-      html += '<td>' + s.unit + '</td>';
-      html += '<td>' + (s.location||'-') + '</td>';
-      html += '<td><span class="tag tag-green">' + s.status + '</span></td>';
-      html += '<td>' + (s.receiveDate||'-') + '</td>';
-      html += '<td style="white-space:nowrap">';
-      html += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + tid + '\',\'' + s.id + '\')">编辑</button> ';
-      html += '<button class="btn btn-danger btn-sm" onclick="deleteSample(\'' + tid + '\',\'' + s.id + '\')">删除</button>';
-      html += '</td></tr>';
-    });
+      return cnt;
+    }
+
+    while (i < pageSamples.length) {
+      var s = pageSamples[i];
+      var rs = sameTaskRun(i);
+      var t = TASKS.filter(function(x){ return x.id === s.taskId; })[0];
+
+      for (var k = 0; k < rs; k++) {
+        var sk = pageSamples[i + k];
+        html += '<tr>';
+        if (k === 0) {
+          html += '<td rowspan="' + rs + '" style="vertical-align:middle;background:#fafafa;font-weight:bold;border-right:2px solid #e8e8e8">' + (t?t.id:'-') + '</td>';
+          html += '<td rowspan="' + rs + '" style="vertical-align:middle;background:#fafafa;border-right:2px solid #e8e8e8">' + (t?t.proj:'-') + '</td>';
+        }
+        html += '<td>' + sk.sampleNo + '</td>';
+        html += '<td>' + sk.name + '</td>';
+        html += '<td><span class="tag tag-blue">' + (sk.sampleType||'-') + '</span></td>';
+        html += '<td><span class="tag tag-orange">' + (sk.source||'-') + '</span></td>';
+        html += '<td>' + sk.spec + '</td>';
+        html += '<td>' + sk.qty + '</td>';
+        html += '<td>' + sk.unit + '</td>';
+        html += '<td>' + (sk.location||'-') + '</td>';
+        html += '<td><span class="tag tag-green">' + sk.status + '</span></td>';
+        html += '<td>' + (sk.receiveDate||'-') + '</td>';
+        html += '<td style="white-space:nowrap">';
+        html += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + sk.taskId + '\',\'' + sk.id + '\')">编辑</button> ';
+        html += '<button class="btn btn-danger btn-sm" onclick="deleteSample(\'' + sk.taskId + '\',\'' + sk.id + '\')">删除</button>';
+        html += '</td></tr>';
+      }
+      i += rs;
+    }
 
     html += '</tbody></table>';
 
     // 分页控件
     if (totalPages > 1) {
       html += '<div style="padding:8px 16px;background:#fafafa;border-top:1px solid #e8e8e8;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px">';
-      html += '<button class="btn btn-default btn-sm" ' + (curPage <= 1 ? 'disabled' : 'onclick="sp_page[\'' + tid + '\']=' + (curPage-1) + ';pageSampleRefresh(true)"') + '>◀ 上一页</button>';
-      html += '<span style="color:#666">第 ' + curPage + ' / ' + totalPages + ' 页（共 ' + n + ' 条）</span>';
-      html += '<button class="btn btn-default btn-sm" ' + (curPage >= totalPages ? 'disabled' : 'onclick="sp_page[\'' + tid + '\']=' + (curPage+1) + ';pageSampleRefresh(true)"') + '>下一页 ▶</button>';
+      html += '<button class="btn btn-default btn-sm" ' + (curPage <= 1 ? 'disabled' : 'onclick="sp_page=' + (curPage-1) + ';pageSampleRefresh(true)"') + '>◀ 上一页</button>';
+      html += '<span style="color:#666">第 ' + curPage + ' / ' + totalPages + ' 页（共 ' + totalCount + ' 条）</span>';
+      html += '<button class="btn btn-default btn-sm" ' + (curPage >= totalPages ? 'disabled' : 'onclick="sp_page=' + (curPage+1) + ';pageSampleRefresh(true)"') + '>下一页 ▶</button>';
       html += '</div>';
     }
 
     html += '</div>';
-  });
+  }
 
   var listContainer = document.getElementById('sp_listContainer');
   if (listContainer) listContainer.innerHTML = html;
 }
 
 var _psrTimer = null;
-var sp_page = {};
+var sp_page = 1;
 var sp_pageSize = 10;
 function pageSample_delayedRefresh() {
   if (_psrTimer) clearTimeout(_psrTimer);
-  _psrTimer = setTimeout(function(){ sp_page={}; pageSampleRefresh(); }, 200);
+  _psrTimer = setTimeout(function(){ sp_page=1; pageSampleRefresh(); }, 200);
 }
 
 function pageFilemgmt() {
