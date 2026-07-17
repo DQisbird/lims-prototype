@@ -2507,7 +2507,7 @@ function viewTaskDetail(taskId) {
     '<div style="margin:16px 0"><b>全流程总览</b> <span style="font-size:11px;color:#999;font-weight:normal">（点击阶段查看详情）</span></div>' +
     fHtml + detailHtml;
 
-  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button> <button class="btn btn-primary" onclick="closeModal();sampleFocusTask=\'' + taskId + '\';navTo(\'sample\')">📋 查看样品</button>');
+  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button>');
   var modal = document.getElementById('modalOverlay');
   var modalEl = modal.querySelector('.modal');
   modalEl.classList.add('modal-wide');
@@ -2791,6 +2791,14 @@ function showSampleDetail(sampleId) {
   var ci = {};
   if (s.checkItems) { try { ci = JSON.parse(s.checkItems); } catch(e) { ci = {}; } }
 
+  // 查找接收人（从任务的阶段历史中获取样品接收的 operator）
+  var t = TASKS.filter(function(x){ return x.id === s.taskId; })[0];
+  var receiver = '';
+  if (t && t.stageHistory) {
+    var recH = t.stageHistory.filter(function(h){ return h.stage === '样品接收'; })[0];
+    if (recH) receiver = recH.operator;
+  }
+
   var body = '<div style="max-height:70vh;overflow-y:auto">';
   body += '<table style="width:100%">';
 
@@ -2809,6 +2817,7 @@ function showSampleDetail(sampleId) {
   body += '<tr><td class="sdt-label">单位</td><td>' + (s.unit||'-') + '</td></tr>';
   body += '<tr><td class="sdt-label">存放位置</td><td>' + (s.location||'-') + '</td></tr>';
   body += '<tr><td class="sdt-label">接收日期</td><td>' + (s.receiveDate||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">接收人</td><td>' + (receiver||'—') + '</td></tr>';
   body += '<tr><td class="sdt-label">状态</td><td><span class="tag tag-green">' + s.status + '</span></td></tr>';
 
   // 接收检查项
@@ -2909,7 +2918,7 @@ function renderSampleTableRO(taskId) {
     return '<div style="text-align:center;padding:40px;color:#bbb">📭 暂无样品</div>';
   }
   var h = '<table><thead><tr>';
-  h += '<th>样品编号</th><th>样品名称</th><th>来源</th><th>样品类型</th><th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th><th>状态</th><th>接收日期</th>';
+  h += '<th>样品编号</th><th>样品名称</th><th>来源</th><th>样品类型</th><th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th><th>状态</th><th>接收日期</th><th>操作</th>';
   h += '</tr></thead><tbody>';
   samples.forEach(function(s) {
     h += '<tr>';
@@ -2923,6 +2932,7 @@ function renderSampleTableRO(taskId) {
     h += '<td>' + (s.location||'-') + '</td>';
     h += '<td><span class="tag tag-green">' + s.status + '</span></td>';
     h += '<td>' + (s.receiveDate||'-') + '</td>';
+    h += '<td style="white-space:nowrap"><button class="btn btn-default btn-sm" onclick="showSampleDetail(\'' + s.id + '\')">详情</button></td>';
     h += '</tr>';
   });
   h += '</tbody></table>';
@@ -3317,7 +3327,7 @@ function showStageDetail(taskId, stageName) {
     html += '<table class="stage-detail-table">';
     html += '<tr><td class="sdt-label">状态</td><td><span class="tag tag-green">已完成</span></td></tr>';
     html += '<tr><td class="sdt-label">完成日期</td><td>' + h.date + '</td></tr>';
-    html += '<tr><td class="sdt-label">操作人</td><td>' + h.operator + '</td></tr>';
+    html += '<tr><td class="sdt-label">操作人' + (stageName === '样品接收' ? '（接收人）' : '') + '</td><td>' + h.operator + '</td></tr>';
     if (h.inspector) html += '<tr><td class="sdt-label">主检人</td><td>' + h.inspector + '</td></tr>';
     if (h.reviewer) html += '<tr><td class="sdt-label">复核人</td><td>' + h.reviewer + '</td></tr>';
     if (h.file) html += '<tr><td class="sdt-label">关联文件</td><td>📄 ' + h.file + '</td></tr>';
