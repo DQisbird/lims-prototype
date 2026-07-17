@@ -2912,12 +2912,25 @@ function pageSampleRefresh(preservePage) {
   if (totalCount === 0) {
     html += '<div class="card" style="text-align:center;padding:60px;color:#bbb">📭 没有匹配的样品记录</div>';
   } else {
-    // 状态统计标签
+    // 工具栏：统计 + 新增按钮 + 确认接收
     html += '<div class="card" style="margin-bottom:12px;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px">';
     html += '<b>统计：</b>';
     Object.keys(statusCounts).sort().forEach(function(st) {
       var cls = statusColors[st] || 'tag-default';
       html += '<span class="tag ' + cls + '">' + st + ' ×' + statusCounts[st] + '</span>';
+    });
+    html += '<span style="color:#ccc;margin:0 4px">|</span>';
+    // 新增样品：下拉选任务
+    html += '<select id="sp_newTask" class="form-input" style="width:200px;font-size:12px">';
+    TASKS.forEach(function(t) {
+      html += '<option value="' + t.id + '">' + t.id + ' — ' + t.proj + '</option>';
+    });
+    html += '</select>';
+    html += '<button class="btn btn-primary btn-sm" onclick="openSampleForm(document.getElementById(\'sp_newTask\').value)">+ 新增样品</button>';
+    // 确认接收按钮：仅样品接收阶段的任务
+    var receivingTasks = TASKS.filter(function(t) { return t.currentStage === '样品接收'; });
+    receivingTasks.forEach(function(rt) {
+      html += '<button class="btn btn-success btn-sm" onclick="confirmReceiveSample(\'' + rt.id + '\')" style="margin-left:4px">✅ 确认接收 ' + rt.id.split('-').pop() + '</button>';
     });
     html += '</div>';
 
@@ -2964,7 +2977,7 @@ function pageSampleRefresh(preservePage) {
         html += '<td>' + sk.qty + '</td>';
         html += '<td>' + sk.unit + '</td>';
         html += '<td>' + (sk.location||'-') + '</td>';
-        html += '<td><span class="tag tag-green">' + sk.status + '</span></td>';
+        html += '<td><span class="tag ' + (statusColors[sk.status]||'tag-default') + '">' + sk.status + '</span></td>';
         html += '<td>' + (sk.receiveDate||'-') + '</td>';
         html += '<td style="white-space:nowrap">';
         html += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + sk.taskId + '\',\'' + sk.id + '\')">编辑</button> ';
