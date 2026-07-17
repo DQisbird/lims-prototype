@@ -2681,8 +2681,8 @@ function openSampleForm(taskId, sampleId) {
   f += '<input class="form-input" id="sf_intactRemark" placeholder="备注" style="margin-left:8px;width:220px" value="' + ((ci.intact||{}).remark||'') + '">';
   f += '</td></tr>';
   f += '<tr><td class="sdt-label">样品无病毒</td><td>';
-  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="是"' + (ci.virusFree&&ci.virusFree.value==='是'?' checked':'') + '> 是</label>';
-  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="否"' + (ci.virusFree&&ci.virusFree.value==='否'?' checked':'') + '> 否</label>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="无病毒"' + (ci.virusFree&&ci.virusFree.value==='无病毒'?' checked':'') + '> 无病毒</label>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="有病毒"' + (ci.virusFree&&ci.virusFree.value==='有病毒'?' checked':'') + '> 有病毒</label>';
   f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="不适用"' + (ci.virusFree&&ci.virusFree.value==='不适用'?' checked':'') + '> 不适用</label>';
   f += '<input class="form-input" id="sf_virusFreeRemark" placeholder="杀毒软件信息" style="margin-left:8px;width:200px" value="' + ((ci.virusFree||{}).remark||'') + '">';
   f += '</td></tr>';
