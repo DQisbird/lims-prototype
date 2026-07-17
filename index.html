@@ -710,7 +710,7 @@ function renderPage() {
     case 'task': c.innerHTML = pageTask(); break;
     case 'filemgmt': c.innerHTML = pageFilemgmt(); break;
     case 'supervision': c.innerHTML = pageSupervision(); break;
-    case 'sample': c.innerHTML = pageSample(); break;
+    case 'sample': pageSample(); break;
     default: c.innerHTML = pagePlaceholder(TITLES[curPage] || curPage); break;
   }
 }
