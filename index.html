@@ -123,6 +123,12 @@ tr:hover{background:#fafafa}
 
 .form-input{width:100%;padding:6px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px}
 .form-input:focus{outline:none;border-color:#1890ff;box-shadow:0 0 0 2px rgba(24,144,255,.2)}
+
+/* 样品管理手风琴 */
+.sp-task-group.open .sp-task-body{display:block !important}
+.sp-task-group.open .sp-task-header span:first-child{transform:rotate(90deg);display:inline-block;transition:transform .2s}
+.sp-task-header span:first-child{transition:transform .2s}
+.sp-task-header:hover{background:#f5f5f5}
 </style>
 </head>
 <body>
@@ -493,6 +499,7 @@ var SUPERVISIONS = [
 // 导航
 // ============================================================
 var curPage = 'todo';
+var sampleFocusTask = null; // 从任务页跳转到样品管理时聚焦的任务
 
 // 当前登录用户（原型硬编码）
 var LOGIN_USER = '张工';
@@ -703,6 +710,7 @@ function renderPage() {
     case 'task': c.innerHTML = pageTask(); break;
     case 'filemgmt': c.innerHTML = pageFilemgmt(); break;
     case 'supervision': c.innerHTML = pageSupervision(); break;
+    case 'sample': c.innerHTML = pageSample(); break;
     default: c.innerHTML = pagePlaceholder(TITLES[curPage] || curPage); break;
   }
 }
@@ -2488,7 +2496,7 @@ function viewTaskDetail(taskId) {
     '<div style="margin:16px 0"><b>全流程总览</b> <span style="font-size:11px;color:#999;font-weight:normal">（点击阶段查看详情）</span></div>' +
     fHtml + detailHtml;
 
-  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button> <button class="btn btn-primary" onclick="showSampleInline(\'' + taskId + '\')">🧪 管理样品</button>');
+  showModal('任务详情 — ' + t.id, body, '<button class="btn btn-default" onclick="closeModal()">关闭</button> <button class="btn btn-primary" onclick="closeModal();sampleFocusTask=\'' + taskId + '\';navTo(\'sample\')">📋 查看样品</button>');
   var modal = document.getElementById('modalOverlay');
   var modalEl = modal.querySelector('.modal');
   modalEl.classList.add('modal-wide');
@@ -2557,37 +2565,8 @@ function viewReviewDetail(reviewId) {
 function stageReceiveSample(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '样品接收') return;
-
-  var taskSamples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
-
-  var html = '';
-  // 任务信息卡片
-  html += '<div class="card" style="margin-bottom:16px;background:#fafafa">';
-  html += '<div class="card-title">📋 任务信息</div>';
-  html += '<table class="stage-detail-table">';
-  html += '<tr><td class="sdt-label">任务编号</td><td>' + t.id + '</td><td class="sdt-label">委托编号</td><td>' + (t.delegateId||'-') + '</td></tr>';
-  html += '<tr><td class="sdt-label">客户名称</td><td>' + t.client + '</td><td class="sdt-label">项目名称</td><td>' + t.proj + '</td></tr>';
-  html += '<tr><td class="sdt-label">当前阶段</td><td><span class="tag tag-blue">' + t.currentStage + '</span></td><td class="sdt-label">样品数量</td><td><b>' + taskSamples.length + '</b> 个</td></tr>';
-  html += '</table></div>';
-
-  // 样品管理
-  html += '<div class="card">';
-  html += '<div class="card-title">🧪 样品管理 — ' + t.proj + '</div>';
-  html += '<div class="toolbar">';
-  html += '<button class="btn btn-primary" onclick="openSampleForm(\'' + taskId + '\')">+ 新增样品</button>';
-  html += '<span style="color:#888;font-size:12px;margin-left:12px">共 <b id="sampleCount">' + taskSamples.length + '</b> 个样品</span>';
-  html += '</div>';
-  html += '<div id="sampleTableContainer">' + renderSampleTable(taskId) + '</div>';
-  html += '</div>';
-
-  // 底部操作
-  var footer = '<button class="btn btn-default" onclick="closeModal()">关闭</button>';
-  footer += '<button class="btn btn-success" style="margin-left:8px" onclick="confirmReceiveSample(\'' + taskId + '\')">✅ 确认接收并进入下一阶段</button>';
-
-  showModal('样品接收 — ' + t.id, html, footer);
-  var modal = document.getElementById('modalOverlay');
-  var modalEl = modal.querySelector('.modal');
-  modalEl.classList.add('modal-wide');
+  sampleFocusTask = taskId;
+  navTo('sample');
 }
 
 function renderSampleTable(taskId) {
@@ -2660,10 +2639,11 @@ function openSampleForm(taskId, sampleId) {
 }
 
 function closeSampleForm(taskId) {
-  if (document.getElementById('stageDetailPanel')) {
+  closeModal();
+  if (curPage === 'sample') {
+    pageSampleRefresh();
+  } else if (document.getElementById('stageDetailPanel')) {
     showSampleInline(taskId);
-  } else {
-    stageReceiveSample(taskId);
   }
 }
 
@@ -2705,23 +2685,23 @@ function saveSample() {
     SAMPLES.push(data);
   }
 
-  // Smart refresh: in viewTaskDetail or standalone modal?
-  if (document.getElementById('stageDetailPanel')) {
+  closeModal();
+  // 如果当前在样品管理页面，刷新列表
+  if (curPage === 'sample') {
+    pageSampleRefresh();
+  } else if (document.getElementById('stageDetailPanel')) {
     showSampleInline(taskId);
-  } else {
-    closeModal();
-    stageReceiveSample(taskId);
   }
 }
 
 function deleteSample(taskId, sampleId) {
   if (!confirm('确定要删除该样品吗？此操作不可撤销。')) return;
   SAMPLES = SAMPLES.filter(function(s) { return s.id !== sampleId; });
-  if (document.getElementById('stageDetailPanel')) {
+  closeModal();
+  if (curPage === 'sample') {
+    pageSampleRefresh();
+  } else if (document.getElementById('stageDetailPanel')) {
     showSampleInline(taskId);
-  } else {
-    closeModal();
-    stageReceiveSample(taskId);
   }
 }
 
@@ -2730,17 +2710,17 @@ function confirmReceiveSample(taskId) {
   if (!t) return;
   var samples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
   if (samples.length === 0) {
-    alert('请至少添加一个样品后再确认接收！');
+    alert('⚠️ 请至少添加一个样品后再确认接收！');
     return;
   }
-  if (!confirm('确认样品接收完成，进入「任务派工」阶段？\\n当前样品数：' + samples.length + ' 个')) return;
+  if (!confirm('确认样品接收完成，进入「任务派工」阶段？\n当前样品数：' + samples.length + ' 个')) return;
   var now = new Date();
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   t.stageHistory.push({ stage: '样品接收', date: ds, operator: LOGIN_USER, sampleCount: samples.length });
   t.currentStage = '任务派工';
-  closeModal();
+  alert('✅ 样品已确认接收！（共 ' + samples.length + ' 个样品）\n进入下一阶段：任务派工');
+  if (curPage === 'sample') pageSampleRefresh();
   renderPage();
-  alert('【原型演示】样品已确认接收！（共 ' + samples.length + ' 个样品）\\n进入下一阶段：任务派工');
 }
 
 function openTaskAssignModal(taskId) {
@@ -2787,6 +2767,178 @@ function confirmTaskAssign(taskId) {
   alert('【原型演示】派工完成！\n主检人：' + inspector + ' | 复核人：' + reviewer + '\n进入下一阶段：测试方案（B.方案阶段）');
   closeModal();
   renderPage();
+}
+
+// ============================================================
+// 样品管理模块（独立页面）
+// ============================================================
+function renderSampleTableRO(taskId) {
+  var samples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+  if (samples.length === 0) {
+    return '<div style="text-align:center;padding:40px;color:#bbb">📭 暂无样品</div>';
+  }
+  var h = '<table><thead><tr>';
+  h += '<th>样品编号</th><th>样品名称</th><th>来源</th><th>样品类型</th><th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th><th>状态</th><th>接收日期</th>';
+  h += '</tr></thead><tbody>';
+  samples.forEach(function(s) {
+    h += '<tr>';
+    h += '<td>' + s.sampleNo + '</td>';
+    h += '<td>' + s.name + '</td>';
+    h += '<td><span class="tag tag-orange">' + (s.source||'-') + '</span></td>';
+    h += '<td><span class="tag tag-blue">' + (s.sampleType||'-') + '</span></td>';
+    h += '<td>' + s.spec + '</td>';
+    h += '<td>' + s.qty + '</td>';
+    h += '<td>' + s.unit + '</td>';
+    h += '<td>' + (s.location||'-') + '</td>';
+    h += '<td><span class="tag tag-green">' + s.status + '</span></td>';
+    h += '<td>' + (s.receiveDate||'-') + '</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+function pageSample() {
+  var focusId = sampleFocusTask;
+  sampleFocusTask = null; // 消费一次
+
+  var html = '';
+
+  // 如果从任务页跳转过来，显示任务信息头部
+  if (focusId) {
+    var ft = TASKS.filter(function(x) { return x.id === focusId; })[0];
+    if (ft) {
+      var fsCount = SAMPLES.filter(function(s) { return s.taskId === focusId; }).length;
+      html += '<div class="card" style="margin-bottom:16px;background:#e6f7ff;border:1px solid #91d5ff">';
+      html += '<div class="card-title">📋 当前任务 — ' + ft.id + '</div>';
+      html += '<table class="stage-detail-table">';
+      html += '<tr><td class="sdt-label">项目名称</td><td>' + ft.proj + '</td><td class="sdt-label">客户</td><td>' + ft.client + '</td></tr>';
+      html += '<tr><td class="sdt-label">当前阶段</td><td><span class="tag tag-blue">' + ft.currentStage + '</span></td><td class="sdt-label">已接收样品</td><td><b>' + fsCount + '</b> 个</td></tr>';
+      html += '</table>';
+      if (ft.currentStage === '样品接收') {
+        html += '<div style="margin-top:8px;font-size:12px;color:#fa8c16">💡 请在此页面完成样品接收，确认后将自动推进至「任务派工」阶段</div>';
+      }
+      html += '</div>';
+    }
+  }
+
+  // 搜索筛选栏
+  html += '<div class="card" style="margin-bottom:16px">';
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  html += '<input id="sp_filter_keyword" class="form-input" placeholder="🔍 搜索样品编号/名称..." style="width:200px" onkeyup="pageSampleRefresh()">';
+  html += '<select id="sp_filter_source" class="form-input" style="width:120px" onchange="pageSampleRefresh()">';
+  html += '<option value="">全部来源</option><option value="送样">送样</option><option value="现场检测">现场检测</option></select>';
+  html += '<select id="sp_filter_type" class="form-input" style="width:120px" onchange="pageSampleRefresh()">';
+  html += '<option value="">全部类型</option>' + ['软件','硬件','电子文档','纸质文档','其他'].map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('') + '</select>';
+  html += '<button class="btn btn-default" onclick="sampleFocusTask=null;pageSampleRefresh()">🔄 显示全部</button>';
+  html += '<span style="color:#888;font-size:12px;margin-left:auto">共 <b id="sp_totalCount">0</b> 个样品</span>';
+  html += '</div></div>';
+
+  // 样品列表区（按任务分组）
+  html += '<div id="sp_listContainer"></div>';
+
+  // 返回按钮
+  html += '<div style="margin-top:16px;text-align:center">';
+  html += '<button class="btn btn-default" onclick="navTo(\'task\')">← 返回任务列表</button>';
+  html += '</div>';
+
+  // 写入页面
+  var container = document.getElementById('content');
+  container.setAttribute('data-sp-html', html);
+  container.innerHTML = html;
+
+  // 聚焦模式：自动展开目标任务组
+  if (focusId) {
+    setTimeout(function() {
+      var tg = document.getElementById('sp_taskGroup_' + focusId.replace(/[^a-zA-Z0-9]/g, '_'));
+      if (tg) { tg.classList.add('open'); tg.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }, 100);
+  }
+
+  pageSampleRefresh();
+}
+
+function pageSampleRefresh() {
+  var keyword = ((document.getElementById('sp_filter_keyword')||{}).value||'').toLowerCase();
+  var source = ((document.getElementById('sp_filter_source')||{}).value||'');
+  var type = ((document.getElementById('sp_filter_type')||{}).value||'');
+
+  // 按taskId过滤+分组
+  var allSamples = SAMPLES.filter(function(s) {
+    if (keyword && s.sampleNo.toLowerCase().indexOf(keyword)===-1 && s.name.toLowerCase().indexOf(keyword)===-1) return false;
+    if (source && s.source !== source) return false;
+    if (type) {
+      if (type === '其他') {
+        if (['软件','硬件','电子文档','纸质文档'].indexOf(s.sampleType) >= 0) return false;
+      } else if (s.sampleType !== type) return false;
+    }
+    return true;
+  });
+
+  // 按任务分组
+  var groups = {};
+  allSamples.forEach(function(s) {
+    if (!groups[s.taskId]) groups[s.taskId] = [];
+    groups[s.taskId].push(s);
+  });
+
+  var taskIds = Object.keys(groups);
+  // 排序：聚焦任务排最前
+  taskIds.sort(function(a, b) {
+    var tA = TASKS.filter(function(x){ return x.id===a; })[0];
+    var tB = TASKS.filter(function(x){ return x.id===b; })[0];
+    return (tB?tB.createDate:'') > (tA?tA.createDate:'') ? 1 : -1;
+  });
+
+  var totalCount = allSamples.length;
+  var totalEl = document.getElementById('sp_totalCount');
+  if (totalEl) totalEl.textContent = totalCount;
+
+  var html = '';
+  if (taskIds.length === 0) {
+    html += '<div class="card" style="text-align:center;padding:60px;color:#bbb">📭 没有匹配的样品记录</div>';
+  }
+
+  taskIds.forEach(function(tid) {
+    var t = TASKS.filter(function(x) { return x.id === tid; })[0];
+    var samples = groups[tid];
+    var gid = 'sp_taskGroup_' + tid.replace(/[^a-zA-Z0-9]/g, '_');
+    var isReceiving = t && t.currentStage === '样品接收';
+
+    html += '<div class="card sp-task-group" id="' + gid + '" style="margin-bottom:12px">';
+    html += '<div class="sp-task-header" onclick="this.parentElement.classList.toggle(\'open\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">';
+    html += '<div><span style="font-size:16px;margin-right:8px">▶</span><b>' + (t?t.id:'未知任务') + '</b>';
+    html += ' <span style="color:#888;font-size:12px;margin-left:8px">' + (t?t.client:'') + ' — ' + (t?t.proj:'') + '</span>';
+    if (isReceiving) html += ' <span class="tag tag-orange" style="margin-left:8px">待接收</span>';
+    html += '</div>';
+    html += '<div style="font-size:13px;color:#666">' + samples.length + ' 个样品</div>';
+    html += '</div>';
+
+    // 样品列表（可折叠内容）
+    html += '<div class="sp-task-body" style="display:none">';
+
+    // 工具栏
+    html += '<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">';
+    html += '<button class="btn btn-primary btn-sm" onclick="openSampleForm(\'' + tid + '\')">+ 新增样品</button>';
+    if (isReceiving) {
+      html += '<button class="btn btn-success btn-sm" onclick="confirmReceiveSample(\'' + tid + '\')">✅ 确认接收并推进阶段</button>';
+    }
+    html += '</div>';
+
+    // 样品表格（完整CRUD版）
+    html += '<div id="sp_table_' + gid + '">' + renderSampleTable(tid) + '</div>';
+    html += '</div>'; // sp-task-body
+    html += '</div>'; // card
+  });
+
+  var listContainer = document.getElementById('sp_listContainer');
+  if (listContainer) listContainer.innerHTML = html;
+}
+
+var _psrTimer = null;
+function pageSample_delayedRefresh() {
+  if (_psrTimer) clearTimeout(_psrTimer);
+  _psrTimer = setTimeout(pageSampleRefresh, 200);
 }
 
 function pageFilemgmt() {
@@ -3033,12 +3185,12 @@ function showStageDetail(taskId, stageName) {
     html += '</div>';
   }
 
-  // 样品接收阶段：追加样品管理面板
+  // 样品接收阶段：只读查看样品清单
   if (stageName === '样品接收') {
     var taskSamples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
     html += '<div style="margin-top:16px"><div style="font-weight:bold;margin-bottom:8px">🧪 样品清单（' + taskSamples.length + ' 个）</div>';
-    html += '<button class="btn btn-primary btn-sm" style="margin-bottom:8px" onclick="showSampleInline(\'' + taskId + '\')">+ 管理样品</button>';
-    html += '<div id="sampleInlineTable">' + renderSampleTable(taskId) + '</div></div>';
+    html += '<button class="btn btn-primary btn-sm" style="margin-bottom:8px" onclick="sampleFocusTask=\'' + taskId + '\';navTo(\'sample\')">📋 前往样品管理</button>';
+    html += '<div>' + renderSampleTableRO(taskId) + '</div></div>';
   }
 
   var panel = document.getElementById('stageDetailPanel');
@@ -3048,9 +3200,9 @@ function showSampleInline(taskId) {
   var panel = document.getElementById('stageDetailPanel');
   if (!panel) return;
   var taskSamples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
-  var html = '<div class="stage-detail-header">🧪 样品管理 <span style="font-size:12px;color:#999">｜共 ' + taskSamples.length + ' 个样品</span></div>';
-  html += '<div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="openSampleForm(\'' + taskId + '\')">+ 新增样品</button></div>';
-  html += '<div id="sampleInlineTable">' + renderSampleTable(taskId) + '</div>';
+  var html = '<div class="stage-detail-header">🧪 样品清单 <span style="font-size:12px;color:#999">｜共 ' + taskSamples.length + ' 个样品</span></div>';
+  html += '<div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="sampleFocusTask=\'' + taskId + '\';navTo(\'sample\')">📋 前往样品管理</button></div>';
+  html += '<div>' + renderSampleTableRO(taskId) + '</div>';
   panel.innerHTML = html;
   var nodes = document.querySelectorAll('#flowchart .stage-node');
   nodes.forEach(function(n) { n.classList.remove('stage-selected'); });
