@@ -456,9 +456,9 @@ var STAGE_PHASE = {
 
 
 var SAMPLES = [
-  { id: 'SMP-001', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-001', name: '智慧校园V3.2安装包', sampleType: '软件', spec: 'v3.2.1', qty: 1, unit: '套', status: '已接收', receiveDate: '2025-12-02', remark: '' },
-  { id: 'SMP-002', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-002', name: '数据库备份文件', sampleType: '电子文档', spec: 'MySQL 8.0', qty: 1, unit: '份', status: '已接收', receiveDate: '2025-12-02', remark: '' },
-  { id: 'SMP-003', taskId: 'TZJC/JSJL-YJ2025-12-06', proj: '消防报警控制器', client: '北京消防科技公司', sampleNo: 'YP-2025-003', name: 'JB-QB-2025报警控制器', sampleType: '硬件', spec: 'JB-QB-2025/DC24V', qty: 2, unit: '台', status: '已接收', receiveDate: '2025-12-06', remark: '含备用电源模块' }
+  { id: 'SMP-001', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-001', name: '智慧校园V3.2安装包', sampleType: '软件', spec: 'v3.2.1', qty: 1, unit: '套', source: '送样', returnMethod: '客户取回', location: '样品室A-103', checkItems: '包装完整性,标识清晰性', status: '已接收', receiveDate: '2025-12-02', remark: '' },
+  { id: 'SMP-002', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-002', name: '数据库备份文件', sampleType: '电子文档', spec: 'MySQL 8.0', qty: 1, unit: '份', source: '送样', returnMethod: '邮寄归还', location: '样品室A-103', checkItems: '包装完整性,标识清晰性', status: '已接收', receiveDate: '2025-12-02', remark: '' },
+  { id: 'SMP-003', taskId: 'TZJC/JSJL-YJ2025-12-06', proj: '消防报警控制器', client: '北京消防科技公司', sampleNo: 'YP-2025-003', name: 'JB-QB-2025报警控制器', sampleType: '硬件', spec: 'JB-QB-2025/DC24V', qty: 2, unit: '台', source: '送样', returnMethod: '现场归还', location: '样品室B-201', checkItems: '包装完整性,标识清晰性', status: '已接收', receiveDate: '2025-12-06', remark: '含备用电源模块' }
 ];
 
 var TASKS = [
@@ -2596,19 +2596,20 @@ function renderSampleTable(taskId) {
     return '<div style="text-align:center;padding:40px;color:#bbb">📭 暂无样品，请点击「新增样品」添加</div>';
   }
   var h = '<table><thead><tr>';
-  h += '<th>样品编号</th><th>样品名称</th><th>样品类型</th><th>规格型号</th><th>数量</th><th>单位</th><th>状态</th><th>接收日期</th><th>备注</th><th>操作</th>';
+  h += '<th>样品编号</th><th>样品名称</th><th>来源</th><th>样品类型</th><th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th><th>状态</th><th>接收日期</th><th>操作</th>';
   h += '</tr></thead><tbody>';
   samples.forEach(function(s) {
     h += '<tr>';
     h += '<td>' + s.sampleNo + '</td>';
     h += '<td>' + s.name + '</td>';
+    h += '<td><span class="tag tag-orange">' + (s.source||'-') + '</span></td>';
     h += '<td><span class="tag tag-blue">' + (s.sampleType||'-') + '</span></td>';
     h += '<td>' + s.spec + '</td>';
     h += '<td>' + s.qty + '</td>';
     h += '<td>' + s.unit + '</td>';
+    h += '<td>' + (s.location||'-') + '</td>';
     h += '<td><span class="tag tag-green">' + s.status + '</span></td>';
     h += '<td>' + (s.receiveDate||'-') + '</td>';
-    h += '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (s.remark||'') + '">' + (s.remark||'-') + '</td>';
     h += '<td style="white-space:nowrap">';
     h += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + taskId + '\',\'' + s.id + '\')">编辑</button> ';
     h += '<button class="btn btn-danger btn-sm" onclick="deleteSample(\'' + taskId + '\',\'' + s.id + '\')">删除</button>';
@@ -2631,10 +2632,14 @@ function openSampleForm(taskId, sampleId) {
   f += '<table class="stage-detail-table">';
   f += '<tr><td class="sdt-label">样品编号</td><td><input id="sf_sampleNo" class="form-input" value="' + (s?s.sampleNo:'') + '" placeholder="如 YP-2025-001"></td></tr>';
   f += '<tr><td class="sdt-label">样品名称</td><td><input id="sf_name" class="form-input" value="' + (s?s.name:'') + '" placeholder="样品名称"></td></tr>';
+  f += '<tr><td class="sdt-label">来源</td><td><select id="sf_source" class="form-input">' + ['送样','现场检测'].map(function(t){ return '<option value="'+t+'"' + (s&&s.source===t?' selected':'') + '>'+t+'</option>'; }).join('') + '</select></td></tr>';
   f += '<tr><td class="sdt-label">样品类型</td><td><select id="sf_type" class="form-input" onchange="var ci=document.getElementById(\'sf_customType\');if(this.value===\'其他\'){ci.style.display=\'\';ci.focus();}else{ci.style.display=\'none\';}">' + ['软件','硬件','电子文档','纸质文档','其他'].map(function(t){ return '<option value="'+t+'"' + (s&&s.sampleType===t?' selected':'') + '>'+t+'</option>'; }).join('') + '</select><input id="sf_customType" class="form-input" placeholder="请输入自定义类型" style="display:none;margin-top:6px;" value="' + (s&&['软件','硬件','电子文档','纸质文档','其他'].indexOf(s.sampleType)===-1&&s.sampleType?s.sampleType:'') + '"></td></tr>';
+  f += '<tr><td class="sdt-label">返还方式</td><td><select id="sf_returnMethod" class="form-input">' + ['客户取回','邮寄归还','现场归还','不归还'].map(function(t){ return '<option value="'+t+'"' + (s&&s.returnMethod===t?' selected':'') + '>'+t+'</option>'; }).join('') + '</select></td></tr>';
   f += '<tr><td class="sdt-label">规格型号</td><td><input id="sf_spec" class="form-input" value="' + (s?s.spec:'') + '" placeholder="规格型号"></td></tr>';
   f += '<tr><td class="sdt-label">数量</td><td><input id="sf_qty" class="form-input" type="number" value="' + (s?s.qty:1) + '" style="width:100px"></td></tr>';
   f += '<tr><td class="sdt-label">单位</td><td><input id="sf_unit" class="form-input" value="' + (s?s.unit:'套') + '" style="width:100px"></td></tr>';
+  f += '<tr><td class="sdt-label">存放位置</td><td><input id="sf_location" class="form-input" value="' + (s?(s.location||''):'') + '" placeholder="如 样品室A-103"></td></tr>';
+  f += '<tr><td class="sdt-label">接收检查项</td><td><label style="margin-right:16px"><input type="checkbox" id="sf_chk1" value="包装完整性"' + (s&&(s.checkItems||'').indexOf('包装完整性')>=0?' checked':'') + '> 包装完整性</label><label><input type="checkbox" id="sf_chk2" value="标识清晰性"' + (s&&(s.checkItems||'').indexOf('标识清晰性')>=0?' checked':'') + '> 标识清晰性</label></td></tr>';
   f += '<tr><td class="sdt-label">接收日期</td><td><input id="sf_date" class="form-input" type="date" value="' + (s?s.receiveDate:new Date().toISOString().slice(0,10)) + '"></td></tr>';
   f += '<tr><td class="sdt-label">备注</td><td><input id="sf_remark" class="form-input" value="' + (s?(s.remark||''):'') + '" placeholder="备注信息"></td></tr>';
   f += '<input type="hidden" id="sf_sampleId" value="' + (s?s.id:'') + '">';
@@ -2674,10 +2679,14 @@ function saveSample() {
     client: t.client,
     sampleNo: document.getElementById('sf_sampleNo').value.trim(),
     name: document.getElementById('sf_name').value.trim(),
+    source: document.getElementById('sf_source').value,
     sampleType: (function(){ var t = document.getElementById('sf_type').value; if (t === '其他') { var c = document.getElementById('sf_customType'); return c && c.value.trim() ? c.value.trim() : '其他'; } return t; })(),
+    returnMethod: document.getElementById('sf_returnMethod').value,
     spec: document.getElementById('sf_spec').value.trim(),
     qty: parseInt(document.getElementById('sf_qty').value) || 1,
     unit: document.getElementById('sf_unit').value.trim() || '套',
+    location: document.getElementById('sf_location').value.trim(),
+    checkItems: (function(){ var c=[]; if(document.getElementById('sf_chk1').checked)c.push('包装完整性'); if(document.getElementById('sf_chk2').checked)c.push('标识清晰性'); return c.join(','); })(),
     status: '已接收',
     receiveDate: document.getElementById('sf_date').value,
     remark: document.getElementById('sf_remark').value.trim()
