@@ -2863,7 +2863,6 @@ function pageSampleRefresh() {
   var source = ((document.getElementById('sp_filter_source')||{}).value||'');
   var type = ((document.getElementById('sp_filter_type')||{}).value||'');
 
-  // 按taskId过滤+分组
   var allSamples = SAMPLES.filter(function(s) {
     if (keyword && s.sampleNo.toLowerCase().indexOf(keyword)===-1 && s.name.toLowerCase().indexOf(keyword)===-1) return false;
     if (source && s.source !== source) return false;
@@ -2875,7 +2874,6 @@ function pageSampleRefresh() {
     return true;
   });
 
-  // 按任务分组
   var groups = {};
   allSamples.forEach(function(s) {
     if (!groups[s.taskId]) groups[s.taskId] = [];
@@ -2883,7 +2881,6 @@ function pageSampleRefresh() {
   });
 
   var taskIds = Object.keys(groups);
-  // 排序：聚焦任务排最前
   taskIds.sort(function(a, b) {
     var tA = TASKS.filter(function(x){ return x.id===a; })[0];
     var tB = TASKS.filter(function(x){ return x.id===b; })[0];
@@ -2902,33 +2899,54 @@ function pageSampleRefresh() {
   taskIds.forEach(function(tid) {
     var t = TASKS.filter(function(x) { return x.id === tid; })[0];
     var samples = groups[tid];
-    var gid = 'sp_taskGroup_' + tid.replace(/[^a-zA-Z0-9]/g, '_');
+    var n = samples.length;
+    var gid = 'sp_task_' + tid.replace(/[^a-zA-Z0-9]/g, '_');
     var isReceiving = t && t.currentStage === '样品接收';
 
-    html += '<div class="card sp-task-group" id="' + gid + '" style="margin-bottom:12px">';
-    html += '<div class="sp-task-header" onclick="this.parentElement.classList.toggle(\'open\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">';
-    html += '<div><span style="font-size:16px;margin-right:8px">▶</span><b>' + (t?t.id:'未知任务') + '</b>';
-    html += ' <span style="color:#888;font-size:12px;margin-left:8px">' + (t?t.client:'') + ' — ' + (t?t.proj:'') + '</span>';
+    html += '<div class="card" id="' + gid + '" style="margin-bottom:16px;padding:0;overflow:auto">';
+    html += '<div style="padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between">';
+    html += '<div><b style="font-size:14px">' + (t?t.id:'未知任务') + '</b>';
+    html += ' <span style="color:#888;font-size:12px;margin-left:12px">' + (t?t.client:'') + ' — ' + (t?t.proj:'') + '</span>';
     if (isReceiving) html += ' <span class="tag tag-orange" style="margin-left:8px">待接收</span>';
+    html += ' <span style="color:#888;font-size:12px;margin-left:8px">' + n + ' 个样品</span>';
     html += '</div>';
-    html += '<div style="font-size:13px;color:#666">' + samples.length + ' 个样品</div>';
-    html += '</div>';
-
-    // 样品列表（可折叠内容）
-    html += '<div class="sp-task-body" style="display:none">';
-
-    // 工具栏
-    html += '<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">';
+    html += '<div>';
     html += '<button class="btn btn-primary btn-sm" onclick="openSampleForm(\'' + tid + '\')">+ 新增样品</button>';
     if (isReceiving) {
-      html += '<button class="btn btn-success btn-sm" onclick="confirmReceiveSample(\'' + tid + '\')">✅ 确认接收并推进阶段</button>';
+      html += ' <button class="btn btn-success btn-sm" onclick="confirmReceiveSample(\'' + tid + '\')">✅ 确认接收</button>';
     }
-    html += '</div>';
+    html += '</div></div>';
 
-    // 样品表格（完整CRUD版）
-    html += '<div id="sp_table_' + gid + '">' + renderSampleTable(tid) + '</div>';
-    html += '</div>'; // sp-task-body
-    html += '</div>'; // card
+    html += '<table style="margin:0">';
+    html += '<thead><tr>';
+    html += '<th style="min-width:210px">项目编号</th><th style="min-width:160px">项目名称</th>';
+    html += '<th>样品编号</th><th>样品名称</th><th>样品类型</th><th>来源</th>';
+    html += '<th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th>';
+    html += '<th>状态</th><th>接收日期</th><th>操作</th></tr></thead><tbody>';
+
+    samples.forEach(function(s, idx) {
+      html += '<tr>';
+      if (idx === 0) {
+        html += '<td rowspan="' + n + '" style="vertical-align:middle;background:#fafafa;font-weight:bold;border-right:2px solid #e8e8e8">' + (t?t.id:'-') + '</td>';
+        html += '<td rowspan="' + n + '" style="vertical-align:middle;background:#fafafa;border-right:2px solid #e8e8e8">' + (t?t.proj:'-') + '</td>';
+      }
+      html += '<td>' + s.sampleNo + '</td>';
+      html += '<td>' + s.name + '</td>';
+      html += '<td><span class="tag tag-blue">' + (s.sampleType||'-') + '</span></td>';
+      html += '<td><span class="tag tag-orange">' + (s.source||'-') + '</span></td>';
+      html += '<td>' + s.spec + '</td>';
+      html += '<td>' + s.qty + '</td>';
+      html += '<td>' + s.unit + '</td>';
+      html += '<td>' + (s.location||'-') + '</td>';
+      html += '<td><span class="tag tag-green">' + s.status + '</span></td>';
+      html += '<td>' + (s.receiveDate||'-') + '</td>';
+      html += '<td style="white-space:nowrap">';
+      html += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + tid + '\',\'' + s.id + '\')">编辑</button> ';
+      html += '<button class="btn btn-danger btn-sm" onclick="deleteSample(\'' + tid + '\',\'' + s.id + '\')">删除</button>';
+      html += '</td></tr>';
+    });
+
+    html += '</tbody></table></div>';
   });
 
   var listContainer = document.getElementById('sp_listContainer');
