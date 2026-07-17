@@ -2631,7 +2631,7 @@ function openSampleForm(taskId, sampleId) {
   f += '<table class="stage-detail-table">';
   f += '<tr><td class="sdt-label">样品编号</td><td><input id="sf_sampleNo" class="form-input" value="' + (s?s.sampleNo:'') + '" placeholder="如 YP-2025-001"></td></tr>';
   f += '<tr><td class="sdt-label">样品名称</td><td><input id="sf_name" class="form-input" value="' + (s?s.name:'') + '" placeholder="样品名称"></td></tr>';
-  f += '<tr><td class="sdt-label">样品类型</td><td><select id="sf_type" class="form-input">' + ['软件','硬件','电子文档','纸质文档','其他'].map(function(t){ return '<option value="'+t+'"' + (s&&s.sampleType===t?' selected':'') + '>'+t+'</option>'; }).join('') + '</select></td></tr>';
+  f += '<tr><td class="sdt-label">样品类型</td><td><select id="sf_type" class="form-input" onchange="var ci=document.getElementById(\'sf_customType\');if(this.value===\'其他\'){ci.style.display=\'\';ci.focus();}else{ci.style.display=\'none\';}">' + ['软件','硬件','电子文档','纸质文档','其他'].map(function(t){ return '<option value="'+t+'"' + (s&&s.sampleType===t?' selected':'') + '>'+t+'</option>'; }).join('') + '</select><input id="sf_customType" class="form-input" placeholder="请输入自定义类型" style="display:none;margin-top:6px;" value="' + (s&&['软件','硬件','电子文档','纸质文档','其他'].indexOf(s.sampleType)===-1&&s.sampleType?s.sampleType:'') + '"></td></tr>';
   f += '<tr><td class="sdt-label">规格型号</td><td><input id="sf_spec" class="form-input" value="' + (s?s.spec:'') + '" placeholder="规格型号"></td></tr>';
   f += '<tr><td class="sdt-label">数量</td><td><input id="sf_qty" class="form-input" type="number" value="' + (s?s.qty:1) + '" style="width:100px"></td></tr>';
   f += '<tr><td class="sdt-label">单位</td><td><input id="sf_unit" class="form-input" value="' + (s?s.unit:'套') + '" style="width:100px"></td></tr>';
@@ -2646,6 +2646,12 @@ function openSampleForm(taskId, sampleId) {
   f += '</div></div>';
 
   showModal(isEdit ? '编辑样品' : '新增样品', f, '');
+  setTimeout(function(){
+    var sel = document.getElementById('sf_type');
+    if (sel && sel.value === '其他') {
+      document.getElementById('sf_customType').style.display = '';
+    }
+  }, 50);
 }
 
 function closeSampleForm(taskId) {
@@ -2668,7 +2674,7 @@ function saveSample() {
     client: t.client,
     sampleNo: document.getElementById('sf_sampleNo').value.trim(),
     name: document.getElementById('sf_name').value.trim(),
-    sampleType: document.getElementById('sf_type').value,
+    sampleType: (function(){ var t = document.getElementById('sf_type').value; if (t === '其他') { var c = document.getElementById('sf_customType'); return c && c.value.trim() ? c.value.trim() : '其他'; } return t; })(),
     spec: document.getElementById('sf_spec').value.trim(),
     qty: parseInt(document.getElementById('sf_qty').value) || 1,
     unit: document.getElementById('sf_unit').value.trim() || '套',
