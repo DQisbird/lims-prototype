@@ -2609,6 +2609,26 @@ function renderSampleTable(taskId) {
   return h;
 }
 
+function showNewSampleDialog() {
+  var openTasks = TASKS.filter(function(t) { return t.status !== '已完成' && t.status !== '已终止'; });
+  if (openTasks.length === 0) {
+    alert('没有进行中的任务，请先在任务管理中创建任务。');
+    return;
+  }
+  var html = '<div style="max-width:420px;margin:0 auto">';
+  html += '<p style="margin-bottom:12px;color:#666;font-size:13px">请选择要关联的任务：</p>';
+  html += '<select id="nsd_taskSelect" class="form-input" style="width:100%;margin-bottom:16px">';
+  openTasks.forEach(function(t) {
+    html += '<option value="' + t.id + '">' + t.id + ' — ' + t.proj + '</option>';
+  });
+  html += '</select>';
+  html += '<div style="text-align:right">';
+  html += '<button class="btn btn-default" onclick="closeModal()">取消</button> ';
+  html += '<button class="btn btn-primary" onclick="var v=document.getElementById(\'nsd_taskSelect\').value;if(v){closeModal();openSampleForm(v)}">确认并新增</button>';
+  html += '</div></div>';
+  showModal('选择关联任务', html, '');
+}
+
 function openSampleForm(taskId, sampleId) {
   var s = null;
   if (sampleId) {
@@ -2893,33 +2913,16 @@ function pageSampleRefresh(preservePage) {
   if (totalCount === 0) {
     html += '<div class="card" style="text-align:center;padding:60px;color:#bbb">📭 没有匹配的样品记录</div>';
   } else {
-    // 工具栏：统计 + 新增样品
+    // 工具栏：新增样品（点击弹窗选任务）
     html += '<div class="card" style="margin-bottom:12px;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px">';
-    html += '<b>统计：</b>';
-    Object.keys(statusCounts).sort().forEach(function(st) {
-      var cls = statusColors[st] || 'tag-default';
-      html += '<span class="tag ' + cls + '">' + st + ' ×' + statusCounts[st] + '</span>';
-    });
-    html += '<span style="color:#ccc;margin:0 4px">|</span>';
-    // 新增样品：下拉选未完成任务
-    html += '<select id="sp_newTask" class="form-input" style="width:220px;font-size:12px">';
-    var openTasks = TASKS.filter(function(t) { return t.status !== '已完成' && t.status !== '已终止'; });
-    if (openTasks.length === 0) {
-      html += '<option value="">无进行中的任务</option>';
-    } else {
-      openTasks.forEach(function(t) {
-        html += '<option value="' + t.id + '">' + t.id + ' — ' + t.proj + '</option>';
-      });
-    }
-    html += '</select>';
-    html += '<button class="btn btn-primary btn-sm" onclick="var v=document.getElementById(\'sp_newTask\').value;if(v)openSampleForm(v)">+ 新增样品</button>';
+    html += '<button class="btn btn-primary btn-sm" onclick="showNewSampleDialog()">+ 新增样品</button>';
     html += '</div>';
 
     // 单一表格
     html += '<div class="card" style="padding:0;overflow:auto">';
     html += '<table style="margin:0">';
     html += '<thead><tr>';
-    html += '<th style="min-width:210px">项目编号</th><th style="min-width:160px">项目名称</th>';
+    html += '<th style="min-width:210px">任务编号</th><th style="min-width:160px">任务名称</th>';
     html += '<th>样品编号</th><th>样品名称</th><th>样品类型</th><th>来源</th>';
     html += '<th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th>';
     html += '<th>状态</th><th>接收日期</th><th>操作</th></tr></thead><tbody>';
