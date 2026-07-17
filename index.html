@@ -2576,8 +2576,30 @@ function viewReviewDetail(reviewId) {
 function stageReceiveSample(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '样品接收') return;
-  sampleFocusTask = taskId;
-  navTo('sample');
+  var samples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+
+  if (samples.length === 0) {
+    // 尚无样品：弹窗引导去样品管理
+    var html = '<div style="max-width:440px;margin:0 auto;text-align:center">';
+    html += '<p style="margin-bottom:12px;color:#666;font-size:14px">当前任务尚无样品记录</p>';
+    html += '<p style="margin-bottom:16px;color:#999;font-size:12px">任务：' + taskId + '｜' + t.proj + '</p>';
+    html += '<p style="margin-bottom:20px;color:#fa8c16;font-size:13px">💡 请先前往样品管理页面添加样品，再回来确认接收</p>';
+    html += '<div style="text-align:right">';
+    html += '<button class="btn btn-default" onclick="closeModal()">取消</button> ';
+    html += '<button class="btn btn-primary" onclick="closeModal();sampleFocusTask=\'' + taskId + '\';navTo(\'sample\')">前往样品管理</button>';
+    html += '</div></div>';
+    showModal('📦 样品接收', html, '');
+  } else {
+    // 已有样品：弹窗展示样品列表 + 确认接收
+    var html = '<div style="max-width:780px;margin:0 auto">';
+    html += '<p style="margin-bottom:8px;color:#666;font-size:13px">任务：' + taskId + '｜' + t.proj + '｜样品数：' + samples.length + ' 个</p>';
+    html += renderSampleTableRO(taskId);
+    html += '<div style="text-align:right;margin-top:16px">';
+    html += '<button class="btn btn-default" onclick="closeModal()">关闭</button> ';
+    html += '<button class="btn btn-success" onclick="closeModal();confirmReceiveSample(\'' + taskId + '\')">✅ 确认接收并进入下一阶段</button>';
+    html += '</div></div>';
+    showModal('📦 样品接收 - 确认', html, '');
+  }
 }
 
 function renderSampleTable(taskId) {
