@@ -2310,6 +2310,34 @@ function pageTask() {
         ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
       } else if (t.currentStage === '任务派工') {
         ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+      } else if (t.currentStage === '测试方案') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openTestPlanModal(\'' + t.id + '\')">编制方案</button> ';
+      } else if (t.currentStage === '方案评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openSchemeReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '用户确认方案') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openUserConfirmModal(\'' + t.id + '\')">上传确认文件</button> ';
+      } else if (t.currentStage === '测试配置及环境确认') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openConfigConfirmModal(\'' + t.id + '\')">上传配置表</button> ';
+      } else if (t.currentStage === '测试记录') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openTestRecordModal(\'' + t.id + '\')">上传测试记录</button> ';
+      } else if (t.currentStage === '测试记录评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openTestRecordReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '回归测试记录') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openRegressionModal(\'' + t.id + '\')">上传回归记录</button> ';
+      } else if (t.currentStage === '回归测试问题报告评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openRegressionReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '检测报告') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openReportModal(\'' + t.id + '\')">编制报告</button> ';
+      } else if (t.currentStage === '检测报告评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openReportReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '用印审批') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openSealApprovalModal(\'' + t.id + '\')">提交审批</button> ';
+      } else if (t.currentStage === '出具报告') {
+        ops += '<button class="btn btn-success btn-sm" onclick="openIssueReportModal(\'' + t.id + '\')">出具报告</button> ';
+      } else if (t.currentStage === '归档') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openArchiveModal(\'' + t.id + '\')">归档</button> ';
+      } else if (t.currentStage === '客户满意度调查') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openSurveyModal(\'' + t.id + '\')">发送调查</button> ';
       }
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
@@ -2387,6 +2415,34 @@ function switchTaskTab(tab) {
         ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
       } else if (t.currentStage === '任务派工') {
         ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+      } else if (t.currentStage === '测试方案') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openTestPlanModal(\'' + t.id + '\')">编制方案</button> ';
+      } else if (t.currentStage === '方案评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openSchemeReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '用户确认方案') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openUserConfirmModal(\'' + t.id + '\')">上传确认文件</button> ';
+      } else if (t.currentStage === '测试配置及环境确认') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openConfigConfirmModal(\'' + t.id + '\')">上传配置表</button> ';
+      } else if (t.currentStage === '测试记录') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openTestRecordModal(\'' + t.id + '\')">上传测试记录</button> ';
+      } else if (t.currentStage === '测试记录评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openTestRecordReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '回归测试记录') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openRegressionModal(\'' + t.id + '\')">上传回归记录</button> ';
+      } else if (t.currentStage === '回归测试问题报告评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openRegressionReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '检测报告') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openReportModal(\'' + t.id + '\')">编制报告</button> ';
+      } else if (t.currentStage === '检测报告评审') {
+        ops += '<button class="btn btn-warning btn-sm" onclick="openReportReviewModal(\'' + t.id + '\')">发起评审</button> ';
+      } else if (t.currentStage === '用印审批') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openSealApprovalModal(\'' + t.id + '\')">提交审批</button> ';
+      } else if (t.currentStage === '出具报告') {
+        ops += '<button class="btn btn-success btn-sm" onclick="openIssueReportModal(\'' + t.id + '\')">出具报告</button> ';
+      } else if (t.currentStage === '归档') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openArchiveModal(\'' + t.id + '\')">归档</button> ';
+      } else if (t.currentStage === '客户满意度调查') {
+        ops += '<button class="btn btn-primary btn-sm" onclick="openSurveyModal(\'' + t.id + '\')">发送调查</button> ';
       }
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
@@ -2908,6 +2964,159 @@ function confirmTaskAssign(taskId) {
   closeModal();
   renderPage();
 }
+
+// ============================================================
+// 阶段推进 — B.方案阶段
+// ============================================================
+
+// B1. 测试方案 (2.3.3)
+function openTestPlanModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '测试方案') return;
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<div class="form-group"><label>方案文件<span style="color:red">*</span></label>';
+  body += '<input id="tp_file" class="form-input" placeholder="文件名，如 ' + t.id + '.CSFA V1.0" value="' + t.id + '.CSFA V1.0"></div>';
+  body += '<div class="form-group"><label>方案说明</label>';
+  body += '<textarea id="tp_desc" class="form-input" rows="4" placeholder="可选，简要描述测试方案内容"></textarea></div>';
+  body += '<div style="font-size:12px;color:#999">📄 上传后自动生成编号：{任务编号}.CSFA V{版本号}</div>';
+  body += '</div>';
+  showModal('📝 测试方案 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmTestPlan(\'' + taskId + '\')">确认提交</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+  );
+}
+
+function confirmTestPlan(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var fileVal = document.getElementById('tp_file').value.trim();
+  if (!fileVal) { alert('请输入方案文件名'); return; }
+  var now = new Date();
+  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  t.stageHistory.push({ stage: '测试方案', date: ds, operator: LOGIN_USER, file: fileVal });
+  t.currentStage = '方案评审';
+  alert('【原型演示】测试方案已提交！\n文件：' + fileVal + '\n进入下一阶段：方案评审');
+  closeModal();
+  renderPage();
+}
+
+// B2. 方案评审 (2.3.4)
+function openSchemeReviewModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '方案评审') return;
+  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
+  var body = '<div style="max-width:600px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
+  reviewers.forEach(function(r, i) {
+    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="sr_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
+  });
+  body += '</div>';
+  body += '<hr style="margin:12px 0">';
+  body += '<div class="form-group"><label>评审意见汇总</label>';
+  body += '<textarea id="sr_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
+  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
+  body += '<select id="sr_result" class="form-input"><option value="通过">✅ 全员通过 — 推进至下一阶段</option><option value="不通过">❌ 不通过 — 退回测试方案</option></select></div>';
+  body += '</div>';
+  showModal('🔍 方案评审 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmSchemeReview(\'' + taskId + '\')">提交评审</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+  );
+}
+
+function confirmSchemeReview(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var cbs = document.querySelectorAll('input[name="sr_reviewers"]:checked');
+  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
+  var result = document.getElementById('sr_result').value;
+  var now = new Date();
+  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  var reviewers = [];
+  cbs.forEach(function(cb) { reviewers.push(cb.value); });
+  t.stageHistory.push({ stage: '方案评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(',') });
+  if (result === '通过') {
+    t.currentStage = '用户确认方案';
+    alert('【原型演示】方案评审全员通过！\n评审人：' + reviewers.join('、') + '\n进入下一阶段：用户确认方案');
+  } else {
+    t.currentStage = '测试方案';
+    alert('【原型演示】方案评审不通过，退回「测试方案」阶段，请修改后重新提交。');
+  }
+  closeModal();
+  renderPage();
+}
+
+// B3. 用户确认方案 (2.3.5)
+function openUserConfirmModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '用户确认方案') return;
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<div class="form-group"><label>用户确认文件<span style="color:red">*</span></label>';
+  body += '<input id="uc_file" class="form-input" placeholder="文件名，如 ' + t.id + '.FAQR V1.0" value="' + t.id + '.FAQR V1.0"></div>';
+  body += '<div style="font-size:12px;color:#999">📄 自动生成编号：{任务编号}.FAQR V{版本号}</div>';
+  body += '</div>';
+  showModal('📋 用户确认方案 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmUserConfirm(\'' + taskId + '\')">确认上传</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+  );
+}
+
+function confirmUserConfirm(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var fileVal = document.getElementById('uc_file').value.trim();
+  if (!fileVal) { alert('请输入确认文件名'); return; }
+  var now = new Date();
+  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  t.stageHistory.push({ stage: '用户确认方案', date: ds, operator: LOGIN_USER, file: fileVal });
+  t.currentStage = '测试配置及环境确认';
+  alert('【原型演示】用户确认文件已上传！\n文件：' + fileVal + '\n进入下一阶段：测试配置及环境确认');
+  closeModal();
+  renderPage();
+}
+
+// B4. 测试配置及环境确认 (2.3.6)
+function openConfigConfirmModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '测试配置及环境确认') return;
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<div class="form-group"><label>检测配置表文件<span style="color:red">*</span></label>';
+  body += '<input id="cc_file" class="form-input" placeholder="文件名，如 ' + t.id + '.CSPZ V1.0" value="' + t.id + '.CSPZ V1.0"></div>';
+  body += '<div style="font-size:12px;color:#999">📄 自动生成编号：{任务编号}.CSPZ V{版本号}<br>⚠ 上传后推进至C.实施阶段（测试记录）</div>';
+  body += '</div>';
+  showModal('⚙️ 测试配置及环境确认 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmConfigConfirm(\'' + taskId + '\')">确认上传</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
+  );
+}
+
+function confirmConfigConfirm(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var fileVal = document.getElementById('cc_file').value.trim();
+  if (!fileVal) { alert('请输入配置表文件名'); return; }
+  var now = new Date();
+  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  t.stageHistory.push({ stage: '测试配置及环境确认', date: ds, operator: LOGIN_USER, file: fileVal });
+  t.currentStage = '测试记录';
+  alert('【原型演示】配置确认表已上传！\n文件：' + fileVal + '\n进入下一阶段：测试记录（C.实施阶段）');
+  closeModal();
+  renderPage();
+}
+
+// ============================================================
+// 阶段推进 — C~F 阶段（占位，后续逐步实现）
+// ============================================================
+function openTestRecordModal(taskId) { alert('【原型演示】C阶段·测试记录 —— 功能开发中，敬请期待！'); }
+function openTestRecordReviewModal(taskId) { alert('【原型演示】C阶段·测试记录评审 —— 功能开发中，敬请期待！'); }
+function openRegressionModal(taskId) { alert('【原型演示】D阶段·回归测试记录 —— 功能开发中，敬请期待！'); }
+function openRegressionReviewModal(taskId) { alert('【原型演示】D阶段·回归测试评审 —— 功能开发中，敬请期待！'); }
+function openReportModal(taskId) { alert('【原型演示】E阶段·检测报告 —— 功能开发中，敬请期待！'); }
+function openReportReviewModal(taskId) { alert('【原型演示】E阶段·检测报告评审 —— 功能开发中，敬请期待！'); }
+function openSealApprovalModal(taskId) { alert('【原型演示】E阶段·用印审批 —— 功能开发中，敬请期待！'); }
+function openIssueReportModal(taskId) { alert('【原型演示】E阶段·出具报告 —— 功能开发中，敬请期待！'); }
+function openArchiveModal(taskId) { alert('【原型演示】F阶段·归档 —— 功能开发中，敬请期待！'); }
+function openSurveyModal(taskId) { alert('【原型演示】F阶段·满意度调查 —— 功能开发中，敬请期待！'); }
 
 // ============================================================
 // 样品管理模块（独立页面）
