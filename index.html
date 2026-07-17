@@ -2784,6 +2784,58 @@ function deleteSample(taskId, sampleId) {
   }
 }
 
+function showSampleDetail(sampleId) {
+  var s = SAMPLES.filter(function(x){ return x.id === sampleId; })[0];
+  if (!s) return;
+
+  var ci = {};
+  if (s.checkItems) { try { ci = JSON.parse(s.checkItems); } catch(e) { ci = {}; } }
+
+  var body = '<div style="max-height:70vh;overflow-y:auto">';
+  body += '<table style="width:100%">';
+
+  // 基本信息
+  body += '<tr><td colspan="2" style="background:#f0f5ff;font-weight:bold;padding:8px 12px;font-size:14px">📋 基本信息</td></tr>';
+  body += '<tr><td class="sdt-label">样品编号</td><td>' + s.sampleNo + '</td></tr>';
+  body += '<tr><td class="sdt-label">样品名称</td><td>' + s.name + '</td></tr>';
+  body += '<tr><td class="sdt-label">关联任务编号</td><td>' + (s.taskId||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">项目名称</td><td>' + (s.proj||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">委托单位</td><td>' + (s.client||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">样品类型</td><td><span class="tag tag-blue">' + (s.sampleType||'-') + '</span></td></tr>';
+  body += '<tr><td class="sdt-label">来源</td><td><span class="tag tag-orange">' + (s.source||'-') + '</span></td></tr>';
+  body += '<tr><td class="sdt-label">返还方式</td><td>' + (s.returnMethod||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">规格型号</td><td>' + (s.spec||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">数量</td><td>' + s.qty + '</td></tr>';
+  body += '<tr><td class="sdt-label">单位</td><td>' + (s.unit||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">存放位置</td><td>' + (s.location||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">接收日期</td><td>' + (s.receiveDate||'-') + '</td></tr>';
+  body += '<tr><td class="sdt-label">状态</td><td><span class="tag tag-green">' + s.status + '</span></td></tr>';
+
+  // 接收检查项
+  body += '<tr><td colspan="2" style="background:#f0f5ff;font-weight:bold;padding:8px 12px;font-size:14px">🔍 接收检查项</td></tr>';
+  var intactVal = (ci.intact||{}).value||'—';
+  var intactRemark = (ci.intact||{}).remark||'';
+  body += '<tr><td class="sdt-label">样品是否完好</td><td><b>' + intactVal + '</b>' + (intactRemark ? ' <span style="color:#888">（' + intactRemark + '）</span>' : '') + '</td></tr>';
+
+  var vfVal = (ci.virusFree||{}).value||'—';
+  var vfRemark = (ci.virusFree||{}).remark||'';
+  body += '<tr><td class="sdt-label">样品无病毒</td><td><b>' + vfVal + '</b>' + (vfRemark ? ' <span style="color:#888">（' + vfRemark + '）</span>' : '') + '</td></tr>';
+
+  var md5Val = (ci.md5||{}).value||'—';
+  var md5Remark = (ci.md5||{}).remark||'';
+  body += '<tr><td class="sdt-label">样品MD5值</td><td><b>' + md5Val + '</b>' + (md5Remark ? ' <span style="color:#888">（' + md5Remark + '）</span>' : '') + '</td></tr>';
+
+  // 备注
+  body += '<tr><td class="sdt-label">备注</td><td>' + (s.remark||'—') + '</td></tr>';
+
+  body += '</table></div>';
+
+  showModal('样品详情 — ' + s.sampleNo, body,
+    '<button class="btn btn-default" onclick="closeModal()">关闭</button> ' +
+    '<button class="btn btn-primary" onclick="closeModal();openSampleForm(\'' + s.taskId + '\',\'' + s.id + '\')">编辑</button>'
+  );
+}
+
 function confirmReceiveSample(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t) return;
@@ -3012,6 +3064,7 @@ function pageSampleRefresh(preservePage) {
         html += '<td><span class="tag ' + (statusColors[sk.status]||'tag-default') + '">' + sk.status + '</span></td>';
         html += '<td>' + (sk.receiveDate||'-') + '</td>';
         html += '<td style="white-space:nowrap">';
+        html += '<button class="btn btn-default btn-sm" onclick="showSampleDetail(\'' + sk.id + '\')">详情</button> ';
         html += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + sk.taskId + '\',\'' + sk.id + '\')">编辑</button> ';
         html += '<button class="btn btn-danger btn-sm" onclick="deleteSample(\'' + sk.taskId + '\',\'' + sk.id + '\')">删除</button>';
         html += '</td></tr>';
