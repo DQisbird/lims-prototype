@@ -120,6 +120,9 @@ tr:hover{background:#fafafa}
 .stage-detail-table .sdt-label{width:100px;color:#999;text-align:right;padding-right:12px;font-size:12px}
 .stage-detail-table .info-section td{background:#f0f5ff;color:#1890ff;font-weight:bold;font-size:13px;padding:8px 10px;border-bottom:2px solid #d6e4ff}
 
+
+.form-input{width:100%;padding:6px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px}
+.form-input:focus{outline:none;border-color:#1890ff;box-shadow:0 0 0 2px rgba(24,144,255,.2)}
 </style>
 </head>
 <body>
@@ -450,6 +453,13 @@ var STAGE_PHASE = {
   '检测报告': 'E', '检测报告评审': 'E', '用印审批': 'E', '出具报告': 'E',
   '归档': 'F', '客户满意度调查': 'F'
 };
+
+
+var SAMPLES = [
+  { id: 'SMP-001', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-001', name: '智慧校园V3.2安装包', spec: 'v3.2.1', qty: 1, unit: '套', status: '已接收', receiveDate: '2025-12-02', remark: '' },
+  { id: 'SMP-002', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-002', name: '数据库备份文件', spec: 'MySQL 8.0', qty: 1, unit: '份', status: '已接收', receiveDate: '2025-12-02', remark: '' },
+  { id: 'SMP-003', taskId: 'TZJC/JSJL-YJ2025-12-06', proj: '消防报警控制器', client: '北京消防科技公司', sampleNo: 'YP-2025-003', name: 'JB-QB-2025报警控制器', spec: 'JB-QB-2025/DC24V', qty: 2, unit: '台', status: '已接收', receiveDate: '2025-12-06', remark: '含备用电源模块' }
+];
 
 var TASKS = [
   { id: 'TZJC/JSJL-RJ2025-12-02', delegateId: 'TZJC/JSJL-2026-01-20.WTSQ-1', reviewId: 'TZJC/JSJL-2025-12-01.HTPS-1', client: '深圳教育局', proj: '智慧校园管理系统V3.0.2', domain: 'RJ', obj: '智慧校园管理系统V3.0.2软件系统', currentStage: '测试记录评审', status: '进行中', inspector: '王工', reviewer: '赵工', planStart: '2025-12-03', planEnd: '2026-06-01', createDate: '2025-12-02', stageHistory: [{ stage:'样品接收',date:'2025-12-03',operator:'孙工'},{ stage:'任务派工',date:'2025-12-03',operator:'张工',inspector:'王工',reviewer:'赵工'},{ stage:'测试方案',date:'2025-12-04',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.CSFA V1.0'},{ stage:'方案评审',date:'2025-12-05',operator:'赵工',result:'通过'},{ stage:'用户确认方案',date:'2025-12-08',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.FAQR V1.0'},{ stage:'测试配置及环境确认',date:'2025-12-10',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.CSPZ V1.0'},{ stage:'测试记录',date:'2025-12-20',operator:'王工',file:'TZJC/JSJL-RJ2025-12-02.CSSM V1.0',hasIssue:false}] },
@@ -2547,13 +2557,162 @@ function viewReviewDetail(reviewId) {
 function stageReceiveSample(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '样品接收') return;
+
+  var taskSamples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+
+  var html = '';
+  // 任务信息卡片
+  html += '<div class="card" style="margin-bottom:16px;background:#fafafa">';
+  html += '<div class="card-title">📋 任务信息</div>';
+  html += '<table class="stage-detail-table">';
+  html += '<tr><td class="sdt-label">任务编号</td><td>' + t.id + '</td><td class="sdt-label">委托编号</td><td>' + (t.delegateId||'-') + '</td></tr>';
+  html += '<tr><td class="sdt-label">客户名称</td><td>' + t.client + '</td><td class="sdt-label">项目名称</td><td>' + t.proj + '</td></tr>';
+  html += '<tr><td class="sdt-label">当前阶段</td><td><span class="tag tag-blue">' + t.currentStage + '</span></td><td class="sdt-label">样品数量</td><td><b>' + taskSamples.length + '</b> 个</td></tr>';
+  html += '</table></div>';
+
+  // 样品管理
+  html += '<div class="card">';
+  html += '<div class="card-title">🧪 样品管理 — ' + t.proj + '</div>';
+  html += '<div class="toolbar">';
+  html += '<button class="btn btn-primary" onclick="openSampleForm(\'' + taskId + '\')">+ 新增样品</button>';
+  html += '<span style="color:#888;font-size:12px;margin-left:12px">共 <b id="sampleCount">' + taskSamples.length + '</b> 个样品</span>';
+  html += '</div>';
+  html += '<div id="sampleTableContainer">' + renderSampleTable(taskId) + '</div>';
+  html += '</div>';
+
+  // 底部操作
+  var footer = '<button class="btn btn-default" onclick="closeModal()">关闭</button>';
+  footer += '<button class="btn btn-success" style="margin-left:8px" onclick="confirmReceiveSample(\'' + taskId + '\')">✅ 确认接收并进入下一阶段</button>';
+
+  showModal('样品接收 — ' + t.id, html, footer);
+  var modal = document.getElementById('modalOverlay');
+  var modalEl = modal.querySelector('.modal');
+  modalEl.classList.add('modal-wide');
+}
+
+function renderSampleTable(taskId) {
+  var samples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+  if (samples.length === 0) {
+    return '<div style="text-align:center;padding:40px;color:#bbb">📭 暂无样品，请点击「新增样品」添加</div>';
+  }
+  var h = '<table><thead><tr>';
+  h += '<th>样品编号</th><th>样品名称</th><th>规格型号</th><th>数量</th><th>单位</th><th>状态</th><th>接收日期</th><th>备注</th><th>操作</th>';
+  h += '</tr></thead><tbody>';
+  samples.forEach(function(s) {
+    h += '<tr>';
+    h += '<td>' + s.sampleNo + '</td>';
+    h += '<td>' + s.name + '</td>';
+    h += '<td>' + s.spec + '</td>';
+    h += '<td>' + s.qty + '</td>';
+    h += '<td>' + s.unit + '</td>';
+    h += '<td><span class="tag tag-green">' + s.status + '</span></td>';
+    h += '<td>' + (s.receiveDate||'-') + '</td>';
+    h += '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (s.remark||'') + '">' + (s.remark||'-') + '</td>';
+    h += '<td style="white-space:nowrap">';
+    h += '<button class="btn btn-default btn-sm" onclick="openSampleForm(\'' + taskId + '\',\'' + s.id + '\')">编辑</button> ';
+    h += '<button class="btn btn-danger btn-sm" onclick="deleteSample(\'' + taskId + '\',\'' + s.id + '\')">删除</button>';
+    h += '</td></tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+function openSampleForm(taskId, sampleId) {
+  var s = null;
+  if (sampleId) {
+    s = SAMPLES.filter(function(x) { return x.id === sampleId; })[0];
+  }
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  var isEdit = !!s;
+
+  var f = '<div class="card" style="max-width:600px;margin:0 auto">';
+  f += '<div class="card-title">' + (isEdit ? '✏️ 编辑样品' : '➕ 新增样品') + '</div>';
+  f += '<table class="stage-detail-table">';
+  f += '<tr><td class="sdt-label">样品编号</td><td><input id="sf_sampleNo" class="form-input" value="' + (s?s.sampleNo:'') + '" placeholder="如 YP-2025-001"></td></tr>';
+  f += '<tr><td class="sdt-label">样品名称</td><td><input id="sf_name" class="form-input" value="' + (s?s.name:'') + '" placeholder="样品名称"></td></tr>';
+  f += '<tr><td class="sdt-label">规格型号</td><td><input id="sf_spec" class="form-input" value="' + (s?s.spec:'') + '" placeholder="规格型号"></td></tr>';
+  f += '<tr><td class="sdt-label">数量</td><td><input id="sf_qty" class="form-input" type="number" value="' + (s?s.qty:1) + '" style="width:100px"></td></tr>';
+  f += '<tr><td class="sdt-label">单位</td><td><input id="sf_unit" class="form-input" value="' + (s?s.unit:'套') + '" style="width:100px"></td></tr>';
+  f += '<tr><td class="sdt-label">接收日期</td><td><input id="sf_date" class="form-input" type="date" value="' + (s?s.receiveDate:new Date().toISOString().slice(0,10)) + '"></td></tr>';
+  f += '<tr><td class="sdt-label">备注</td><td><input id="sf_remark" class="form-input" value="' + (s?(s.remark||''):'') + '" placeholder="备注信息"></td></tr>';
+  f += '<input type="hidden" id="sf_sampleId" value="' + (s?s.id:'') + '">';
+  f += '<input type="hidden" id="sf_taskId" value="' + taskId + '">';
+  f += '</table>';
+  f += '<div style="text-align:right;margin-top:12px">';
+  f += '<button class="btn btn-default" onclick="closeSampleForm(\'' + taskId + '\')">取消</button> ';
+  f += '<button class="btn btn-primary" onclick="saveSample()">' + (isEdit?'保存修改':'确认添加') + '</button>';
+  f += '</div></div>';
+
+  showModal(isEdit ? '编辑样品' : '新增样品', f, '');
+}
+
+function closeSampleForm(taskId) {
+  // Return to sample receive view
+  stageReceiveSample(taskId);
+}
+
+function saveSample() {
+  var sampleId = document.getElementById('sf_sampleId').value;
+  var taskId = document.getElementById('sf_taskId').value;
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+
+  var data = {
+    id: sampleId || ('SMP-' + new Date().getTime()),
+    taskId: taskId,
+    proj: t.proj,
+    client: t.client,
+    sampleNo: document.getElementById('sf_sampleNo').value.trim(),
+    name: document.getElementById('sf_name').value.trim(),
+    spec: document.getElementById('sf_spec').value.trim(),
+    qty: parseInt(document.getElementById('sf_qty').value) || 1,
+    unit: document.getElementById('sf_unit').value.trim() || '套',
+    status: '已接收',
+    receiveDate: document.getElementById('sf_date').value,
+    remark: document.getElementById('sf_remark').value.trim()
+  };
+
+  if (!data.sampleNo || !data.name) {
+    alert('样品编号和样品名称不能为空');
+    return;
+  }
+
+  if (sampleId) {
+    // Edit existing
+    var idx = -1;
+    SAMPLES.forEach(function(x, i) { if (x.id === sampleId) idx = i; });
+    if (idx >= 0) SAMPLES[idx] = data;
+  } else {
+    SAMPLES.push(data);
+  }
+
+  // Refresh the sample receive view
+  closeModal();
+  stageReceiveSample(taskId);
+}
+
+function deleteSample(taskId, sampleId) {
+  if (!confirm('确定要删除该样品吗？此操作不可撤销。')) return;
+  SAMPLES = SAMPLES.filter(function(s) { return s.id !== sampleId; });
+  closeModal();
+  stageReceiveSample(taskId);
+}
+
+function confirmReceiveSample(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var samples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
+  if (samples.length === 0) {
+    alert('请至少添加一个样品后再确认接收！');
+    return;
+  }
+  if (!confirm('确认样品接收完成，进入「任务派工」阶段？\\n当前样品数：' + samples.length + ' 个')) return;
   var now = new Date();
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-  t.stageHistory.push({ stage: '样品接收', date: ds, operator: LOGIN_USER });
+  t.stageHistory.push({ stage: '样品接收', date: ds, operator: LOGIN_USER, sampleCount: samples.length });
   t.currentStage = '任务派工';
-  alert('【原型演示】样品已确认接收！\n进入下一阶段：任务派工');
   closeModal();
   renderPage();
+  alert('【原型演示】样品已确认接收！（共 ' + samples.length + ' 个样品）\\n进入下一阶段：任务派工');
 }
 
 function openTaskAssignModal(taskId) {
