@@ -2649,7 +2649,26 @@ function openSampleForm(taskId, sampleId) {
   f += '<tr><td class="sdt-label">数量</td><td><input id="sf_qty" class="form-input" type="number" value="' + (s?s.qty:1) + '" style="width:100px"></td></tr>';
   f += '<tr><td class="sdt-label">单位</td><td><input id="sf_unit" class="form-input" value="' + (s?s.unit:'套') + '" style="width:100px"></td></tr>';
   f += '<tr><td class="sdt-label">存放位置</td><td><input id="sf_location" class="form-input" value="' + (s?(s.location||''):'') + '" placeholder="如 样品室A-103"></td></tr>';
-  f += '<tr><td class="sdt-label">接收检查项</td><td><label style="margin-right:16px"><input type="checkbox" id="sf_chk1" value="包装完整性"' + (s&&(s.checkItems||'').indexOf('包装完整性')>=0?' checked':'') + '> 包装完整性</label><label><input type="checkbox" id="sf_chk2" value="标识清晰性"' + (s&&(s.checkItems||'').indexOf('标识清晰性')>=0?' checked':'') + '> 标识清晰性</label></td></tr>';
+  var ci = {};
+  if (s && s.checkItems) {
+    try { ci = JSON.parse(s.checkItems); } catch(e) { ci = {}; }
+  }
+  f += '<tr><td class="sdt-label">样品是否完好</td><td>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_intact" value="是"' + (ci.intact&&ci.intact.value==='是'?' checked':'') + '> 是</label>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_intact" value="否"' + (ci.intact&&ci.intact.value==='否'?' checked':'') + '> 否</label>';
+  f += '<input class="form-input" id="sf_intactRemark" placeholder="备注" style="margin-left:8px;width:220px" value="' + ((ci.intact||{}).remark||'') + '">';
+  f += '</td></tr>';
+  f += '<tr><td class="sdt-label">样品无病毒</td><td>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="是"' + (ci.virusFree&&ci.virusFree.value==='是'?' checked':'') + '> 是</label>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="否"' + (ci.virusFree&&ci.virusFree.value==='否'?' checked':'') + '> 否</label>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_virusFree" value="不适用"' + (ci.virusFree&&ci.virusFree.value==='不适用'?' checked':'') + '> 不适用</label>';
+  f += '<input class="form-input" id="sf_virusFreeRemark" placeholder="杀毒软件信息" style="margin-left:8px;width:200px" value="' + ((ci.virusFree||{}).remark||'') + '">';
+  f += '</td></tr>';
+  f += '<tr><td class="sdt-label">样品MD5值</td><td>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_md5" value="有MD5值"' + (ci.md5&&ci.md5.value==='有MD5值'?' checked':'') + '> 有MD5值</label>';
+  f += '<label style="margin-right:12px"><input type="radio" name="sf_md5" value="不适用"' + (ci.md5&&ci.md5.value==='不适用'?' checked':'') + '> 不适用</label>';
+  f += '<input class="form-input" id="sf_md5Remark" placeholder="MD5值" style="margin-left:8px;width:260px" value="' + ((ci.md5||{}).remark||'') + '">';
+  f += '</td></tr>';
   f += '<tr><td class="sdt-label">接收日期</td><td><input id="sf_date" class="form-input" type="date" value="' + (s?s.receiveDate:new Date().toISOString().slice(0,10)) + '"></td></tr>';
   f += '<tr><td class="sdt-label">备注</td><td><input id="sf_remark" class="form-input" value="' + (s?(s.remark||''):'') + '" placeholder="备注信息"></td></tr>';
   f += '<input type="hidden" id="sf_sampleId" value="' + (s?s.id:'') + '">';
@@ -2697,7 +2716,14 @@ function saveSample() {
     qty: parseInt(document.getElementById('sf_qty').value) || 1,
     unit: document.getElementById('sf_unit').value.trim() || '套',
     location: document.getElementById('sf_location').value.trim(),
-    checkItems: (function(){ var c=[]; if(document.getElementById('sf_chk1').checked)c.push('包装完整性'); if(document.getElementById('sf_chk2').checked)c.push('标识清晰性'); return c.join(','); })(),
+    checkItems: (function(){
+      var getRadio = function(name){ var el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:''; };
+      return JSON.stringify({
+        intact:   {value: getRadio('sf_intact'),    remark: (document.getElementById('sf_intactRemark')||{}).value||''},
+        virusFree:{value: getRadio('sf_virusFree'),  remark: (document.getElementById('sf_virusFreeRemark')||{}).value||''},
+        md5:      {value: getRadio('sf_md5'),        remark: (document.getElementById('sf_md5Remark')||{}).value||''}
+      });
+    })(),
     status: '已接收',
     receiveDate: document.getElementById('sf_date').value,
     remark: document.getElementById('sf_remark').value.trim()
