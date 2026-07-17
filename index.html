@@ -456,9 +456,9 @@ var STAGE_PHASE = {
 
 
 var SAMPLES = [
-  { id: 'SMP-001', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-001', name: '智慧校园V3.2安装包', spec: 'v3.2.1', qty: 1, unit: '套', status: '已接收', receiveDate: '2025-12-02', remark: '' },
-  { id: 'SMP-002', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-002', name: '数据库备份文件', spec: 'MySQL 8.0', qty: 1, unit: '份', status: '已接收', receiveDate: '2025-12-02', remark: '' },
-  { id: 'SMP-003', taskId: 'TZJC/JSJL-YJ2025-12-06', proj: '消防报警控制器', client: '北京消防科技公司', sampleNo: 'YP-2025-003', name: 'JB-QB-2025报警控制器', spec: 'JB-QB-2025/DC24V', qty: 2, unit: '台', status: '已接收', receiveDate: '2025-12-06', remark: '含备用电源模块' }
+  { id: 'SMP-001', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-001', name: '智慧校园V3.2安装包', sampleType: '软件', spec: 'v3.2.1', qty: 1, unit: '套', status: '已接收', receiveDate: '2025-12-02', remark: '' },
+  { id: 'SMP-002', taskId: 'TZJC/JSJL-RJ2025-12-02', proj: '智慧校园管理系统V3', client: '深圳教育局', sampleNo: 'YP-2025-002', name: '数据库备份文件', sampleType: '电子文档', spec: 'MySQL 8.0', qty: 1, unit: '份', status: '已接收', receiveDate: '2025-12-02', remark: '' },
+  { id: 'SMP-003', taskId: 'TZJC/JSJL-YJ2025-12-06', proj: '消防报警控制器', client: '北京消防科技公司', sampleNo: 'YP-2025-003', name: 'JB-QB-2025报警控制器', sampleType: '硬件', spec: 'JB-QB-2025/DC24V', qty: 2, unit: '台', status: '已接收', receiveDate: '2025-12-06', remark: '含备用电源模块' }
 ];
 
 var TASKS = [
@@ -2596,12 +2596,13 @@ function renderSampleTable(taskId) {
     return '<div style="text-align:center;padding:40px;color:#bbb">📭 暂无样品，请点击「新增样品」添加</div>';
   }
   var h = '<table><thead><tr>';
-  h += '<th>样品编号</th><th>样品名称</th><th>规格型号</th><th>数量</th><th>单位</th><th>状态</th><th>接收日期</th><th>备注</th><th>操作</th>';
+  h += '<th>样品编号</th><th>样品名称</th><th>样品类型</th><th>规格型号</th><th>数量</th><th>单位</th><th>状态</th><th>接收日期</th><th>备注</th><th>操作</th>';
   h += '</tr></thead><tbody>';
   samples.forEach(function(s) {
     h += '<tr>';
     h += '<td>' + s.sampleNo + '</td>';
     h += '<td>' + s.name + '</td>';
+    h += '<td><span class="tag tag-blue">' + (s.sampleType||'-') + '</span></td>';
     h += '<td>' + s.spec + '</td>';
     h += '<td>' + s.qty + '</td>';
     h += '<td>' + s.unit + '</td>';
@@ -2666,6 +2667,7 @@ function saveSample() {
     client: t.client,
     sampleNo: document.getElementById('sf_sampleNo').value.trim(),
     name: document.getElementById('sf_name').value.trim(),
+    sampleType: document.getElementById('sf_type').value,
     spec: document.getElementById('sf_spec').value.trim(),
     qty: parseInt(document.getElementById('sf_qty').value) || 1,
     unit: document.getElementById('sf_unit').value.trim() || '套',
