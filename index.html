@@ -2631,6 +2631,7 @@ function openSampleForm(taskId, sampleId) {
   f += '<table class="stage-detail-table">';
   f += '<tr><td class="sdt-label">样品编号</td><td><input id="sf_sampleNo" class="form-input" value="' + (s?s.sampleNo:'') + '" placeholder="如 YP-2025-001"></td></tr>';
   f += '<tr><td class="sdt-label">样品名称</td><td><input id="sf_name" class="form-input" value="' + (s?s.name:'') + '" placeholder="样品名称"></td></tr>';
+  f += '<tr><td class="sdt-label">样品类型</td><td><select id="sf_type" class="form-input">' + ['软件','硬件','电子文档','纸质文档','其他'].map(function(t){ return '<option value="'+t+'"' + (s&&s.sampleType===t?' selected':'') + '>'+t+'</option>'; }).join('') + '</select></td></tr>';
   f += '<tr><td class="sdt-label">规格型号</td><td><input id="sf_spec" class="form-input" value="' + (s?s.spec:'') + '" placeholder="规格型号"></td></tr>';
   f += '<tr><td class="sdt-label">数量</td><td><input id="sf_qty" class="form-input" type="number" value="' + (s?s.qty:1) + '" style="width:100px"></td></tr>';
   f += '<tr><td class="sdt-label">单位</td><td><input id="sf_unit" class="form-input" value="' + (s?s.unit:'套') + '" style="width:100px"></td></tr>';
