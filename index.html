@@ -2858,10 +2858,12 @@ function pageSample() {
   pageSampleRefresh();
 }
 
-function pageSampleRefresh() {
+function pageSampleRefresh(preservePage) {
   var keyword = ((document.getElementById('sp_filter_keyword')||{}).value||'').toLowerCase();
   var source = ((document.getElementById('sp_filter_source')||{}).value||'');
   var type = ((document.getElementById('sp_filter_type')||{}).value||'');
+
+  if (!preservePage) sp_page = {};
 
   var allSamples = SAMPLES.filter(function(s) {
     if (keyword && s.sampleNo.toLowerCase().indexOf(keyword)===-1 && s.name.toLowerCase().indexOf(keyword)===-1) return false;
@@ -2903,12 +2905,34 @@ function pageSampleRefresh() {
     var gid = 'sp_task_' + tid.replace(/[^a-zA-Z0-9]/g, '_');
     var isReceiving = t && t.currentStage === '样品接收';
 
+    // 按状态统计
+    var statusCounts = {};
+    samples.forEach(function(s) { statusCounts[s.status] = (statusCounts[s.status] || 0) + 1; });
+    var statusTags = '';
+    var statusColors = {'已接收':'tag-green','检测中':'tag-blue','已归还':'tag-default','异常':'tag-red','待接收':'tag-orange'};
+    Object.keys(statusCounts).sort().forEach(function(st) {
+      var cls = statusColors[st] || 'tag-default';
+      statusTags += '<span class="tag ' + cls + '" style="margin-left:3px;font-size:11px">' + st + ' ×' + statusCounts[st] + '</span>';
+    });
+
+    // 分页
+    var curPage = sp_page[tid] || 1;
+    var totalPages = Math.max(1, Math.ceil(n / sp_pageSize));
+    if (curPage > totalPages) curPage = totalPages;
+    if (curPage < 1) curPage = 1;
+    sp_page[tid] = curPage;
+    var startIdx = (curPage - 1) * sp_pageSize;
+    var pageSamples = samples.slice(startIdx, startIdx + sp_pageSize);
+    var pageN = pageSamples.length;
+
     html += '<div class="card" id="' + gid + '" style="margin-bottom:16px;padding:0;overflow:auto">';
-    html += '<div style="padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between">';
-    html += '<div><b style="font-size:14px">' + (t?t.id:'未知任务') + '</b>';
-    html += ' <span style="color:#888;font-size:12px;margin-left:12px">' + (t?t.client:'') + ' — ' + (t?t.proj:'') + '</span>';
-    if (isReceiving) html += ' <span class="tag tag-orange" style="margin-left:8px">待接收</span>';
-    html += ' <span style="color:#888;font-size:12px;margin-left:8px">' + n + ' 个样品</span>';
+    html += '<div style="padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">';
+    html += '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">';
+    html += '<b style="font-size:14px">' + (t?t.id:'未知任务') + '</b>';
+    html += ' <span style="color:#888;font-size:12px;margin-left:4px">' + (t?t.client:'') + ' — ' + (t?t.proj:'') + '</span>';
+    if (isReceiving) html += ' <span class="tag tag-orange" style="margin-left:4px">待接收</span>';
+    html += '<span style="color:#aaa;font-size:11px;margin-left:4px">|</span>';
+    html += statusTags;
     html += '</div>';
     html += '<div>';
     html += '<button class="btn btn-primary btn-sm" onclick="openSampleForm(\'' + tid + '\')">+ 新增样品</button>';
@@ -2924,11 +2948,11 @@ function pageSampleRefresh() {
     html += '<th>规格型号</th><th>数量</th><th>单位</th><th>存放位置</th>';
     html += '<th>状态</th><th>接收日期</th><th>操作</th></tr></thead><tbody>';
 
-    samples.forEach(function(s, idx) {
+    pageSamples.forEach(function(s, idx) {
       html += '<tr>';
       if (idx === 0) {
-        html += '<td rowspan="' + n + '" style="vertical-align:middle;background:#fafafa;font-weight:bold;border-right:2px solid #e8e8e8">' + (t?t.id:'-') + '</td>';
-        html += '<td rowspan="' + n + '" style="vertical-align:middle;background:#fafafa;border-right:2px solid #e8e8e8">' + (t?t.proj:'-') + '</td>';
+        html += '<td rowspan="' + pageN + '" style="vertical-align:middle;background:#fafafa;font-weight:bold;border-right:2px solid #e8e8e8">' + (t?t.id:'-') + '</td>';
+        html += '<td rowspan="' + pageN + '" style="vertical-align:middle;background:#fafafa;border-right:2px solid #e8e8e8">' + (t?t.proj:'-') + '</td>';
       }
       html += '<td>' + s.sampleNo + '</td>';
       html += '<td>' + s.name + '</td>';
@@ -2946,7 +2970,18 @@ function pageSampleRefresh() {
       html += '</td></tr>';
     });
 
-    html += '</tbody></table></div>';
+    html += '</tbody></table>';
+
+    // 分页控件
+    if (totalPages > 1) {
+      html += '<div style="padding:8px 16px;background:#fafafa;border-top:1px solid #e8e8e8;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px">';
+      html += '<button class="btn btn-default btn-sm" ' + (curPage <= 1 ? 'disabled' : 'onclick="sp_page[\'' + tid + '\']=' + (curPage-1) + ';pageSampleRefresh(true)"') + '>◀ 上一页</button>';
+      html += '<span style="color:#666">第 ' + curPage + ' / ' + totalPages + ' 页（共 ' + n + ' 条）</span>';
+      html += '<button class="btn btn-default btn-sm" ' + (curPage >= totalPages ? 'disabled' : 'onclick="sp_page[\'' + tid + '\']=' + (curPage+1) + ';pageSampleRefresh(true)"') + '>下一页 ▶</button>';
+      html += '</div>';
+    }
+
+    html += '</div>';
   });
 
   var listContainer = document.getElementById('sp_listContainer');
@@ -2954,9 +2989,11 @@ function pageSampleRefresh() {
 }
 
 var _psrTimer = null;
+var sp_page = {};
+var sp_pageSize = 10;
 function pageSample_delayedRefresh() {
   if (_psrTimer) clearTimeout(_psrTimer);
-  _psrTimer = setTimeout(pageSampleRefresh, 200);
+  _psrTimer = setTimeout(function(){ sp_page={}; pageSampleRefresh(); }, 200);
 }
 
 function pageFilemgmt() {
