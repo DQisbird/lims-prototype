@@ -551,6 +551,9 @@ function updateHeader() {
   }
   sel.value = LOGIN_USER;
 }
+// ── 管理层定义 ──
+var MANAGEMENT_ROLES = ['实验室负责人','技术负责人','质量负责人','部门负责人'];
+function isManager() { return MANAGEMENT_ROLES.indexOf(LOGIN_ROLE) >= 0; }
 function canAssignTask() {
   return LOGIN_ROLE === '技术负责人' || LOGIN_ROLE === '实验室负责人';
 }
@@ -2318,7 +2321,7 @@ function pageTask() {
   
   function getBaseData() {
     if (taskTab === 'active') return TASKS.filter(function(t) { return t.status === '进行中'; });
-    return TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档'; });
+    return TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; });
   }
 
   function doFilter() {
@@ -2346,8 +2349,8 @@ function pageTask() {
     if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
     var deadlineDisplay = t.deadline || t.planEnd || '-';
     var ops = '';
-    // 阶段操作按钮（仅进行中任务显示）
-    if (t.status === '进行中') {
+    // 阶段操作按钮（仅管理层可操作）
+    if (t.status === '进行中' && isManager()) {
       if (t.currentStage === '样品接收') {
         ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
       } else if (t.currentStage === '待样品管理员确认') {
@@ -2392,6 +2395,16 @@ function pageTask() {
     if (t.delegateId) {
       ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
     }
+    // 管理层专属操作
+    if (isManager()) {
+      if (t.status === '进行中') {
+        ops += ' <button class="btn btn-danger btn-sm" onclick="terminateTask(\'' + t.id + '\')">终止</button>';
+      }
+      ops += ' <button class="btn btn-default btn-sm" onclick="editTask(\'' + t.id + '\')">编辑</button>';
+      if (t.currentStage === '未开始') {
+        ops += ' <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\')">删除</button>';
+      }
+    }
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
@@ -2410,7 +2423,7 @@ function pageTask() {
   var stageOpts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
 
   var activeCount = TASKS.filter(function(t) { return t.status === '进行中'; }).length;
-  var doneCount = TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档'; }).length;
+  var doneCount = TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; }).length;
 
   taskTab = 'active';
   taskFiltered = getBaseData();
@@ -2435,7 +2448,7 @@ function pageTask() {
       '<select id="task_filter_domain" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">检测领域-全部</option>' + domainOpts + '</select>' +
       '<select id="task_filter_stage" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">当前阶段-全部</option>' + stageOpts + '</select>' +
       '<input id="task_filter_inspector" placeholder="主检人" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:120px">' +
-      '<button class="btn btn-primary" onclick="openNewTaskModal()">+ 新建任务</button>' +
+      (isManager() ? '<button class="btn btn-primary" onclick="openNewTaskModal()">+ 新建任务</button>' : '') +
       '<span id="task_count" style="margin-left:auto;color:#666;font-size:13px">共 <b>' + taskFiltered.length + '</b> 条</span>' +
     '</div>' +
     '<table><thead><tr>' +
@@ -2452,7 +2465,7 @@ function switchTaskTab(tab) {
   var els = ['task_filter_id','task_filter_client','task_filter_domain','task_filter_stage','task_filter_inspector'];
   els.forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
   // 重新过滤
-  var base = tab === 'active' ? TASKS.filter(function(t) { return t.status === '进行中'; }) : TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档'; });
+  var base = tab === 'active' ? TASKS.filter(function(t) { return t.status === '进行中'; }) : TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; });
   taskFiltered = base;
   var rows = taskFiltered.map(function(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
@@ -2460,7 +2473,8 @@ function switchTaskTab(tab) {
     if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
     var deadlineDisplay = t.deadline || t.planEnd || '-';
     var ops = '';
-    if (t.status === '进行中') {
+    // 阶段操作按钮（仅管理层可操作）
+    if (t.status === '进行中' && isManager()) {
       if (t.currentStage === '样品接收') {
         ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
       } else if (t.currentStage === '待样品管理员确认') {
@@ -2503,6 +2517,16 @@ function switchTaskTab(tab) {
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
     if (t.delegateId) ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
+    // 管理层专属操作
+    if (isManager()) {
+      if (t.status === '进行中') {
+        ops += ' <button class="btn btn-danger btn-sm" onclick="terminateTask(\'' + t.id + '\')">终止</button>';
+      }
+      ops += ' <button class="btn btn-default btn-sm" onclick="editTask(\'' + t.id + '\')">编辑</button>';
+      if (t.currentStage === '未开始') {
+        ops += ' <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\')">删除</button>';
+      }
+    }
     return '<tr><td>' + t.id + '</td><td>' + (t.delegateId||'-') + '</td><td>' + t.client + '</td>' +
       '<td>' + domainLabel + '</td><td>' + t.obj + '</td><td>' + t.currentStage + '</td>' +
       '<td>' + inspectorDisplay + '</td><td>' + statusTag(t.status) + '</td>' +
@@ -2625,7 +2649,56 @@ function viewTaskDetail(taskId) {
   modalEl.classList.add('modal-wide');
 }
 
+// ── 任务管理操作（管理层）──
+function terminateTask(taskId) {
+  if (!isManager()) { alert('仅管理层可终止任务'); return; }
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  if (t.status === '已归档' || t.status === '已终止') { alert('已归档或已终止的任务不可再终止'); return; }
+  if (!confirm('确认终止任务「' + t.proj + '」？\n编号：' + t.id + '\n此操作不可逆！')) return;
+  t.status = '已终止';
+  t.stageHistory.push({ stage: '已终止', date: fmt(new Date()), operator: LOGIN_USER });
+  alert('任务已终止');
+  renderPage();
+}
+function editTask(taskId) {
+  if (!isManager()) { alert('仅管理层可编辑任务'); return; }
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var body = '<div class="form-group"><label>任务编号</label><div class="form-ctl"><input id="edit_id" value="' + t.id + '"></div></div>' +
+    '<div class="form-group"><label>委托方</label><div class="form-ctl"><input id="edit_client" value="' + (t.client||'') + '"></div></div>' +
+    '<div class="form-group"><label>检测对象</label><div class="form-ctl"><input id="edit_obj" value="' + (t.obj||'') + '"></div></div>' +
+    '<div class="form-group"><label>项目名称</label><div class="form-ctl"><input id="edit_proj" value="' + (t.proj||'') + '"></div></div>' +
+    '<div class="form-group"><label>完成期限</label><div class="form-ctl"><input type="date" id="edit_planend" value="' + (t.planEnd||'') + '"></div></div>';
+  showModal('编辑任务 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmEditTask(\'' + taskId + '\')">保存修改</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmEditTask(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  t.id = document.getElementById('edit_id').value;
+  t.client = document.getElementById('edit_client').value;
+  t.obj = document.getElementById('edit_obj').value;
+  t.proj = document.getElementById('edit_proj').value;
+  t.planEnd = document.getElementById('edit_planend').value;
+  alert('任务信息已更新');
+  closeModal();
+  renderPage();
+}
+function deleteTask(taskId) {
+  if (!isManager()) { alert('仅管理层可删除任务'); return; }
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  if (t.currentStage !== '未开始') { alert('仅可删除未派工的任务'); return; }
+  if (!confirm('确认删除任务「' + t.proj + '」？\n编号：' + t.id + '\n此操作不可逆！')) return;
+  TASKS = TASKS.filter(function(x) { return x.id !== taskId; });
+  alert('任务已删除');
+  renderPage();
+}
+
 function openNewTaskModal() {
+  if (!isManager()) { alert('仅管理层可新建任务'); return; }
   // 从已通过的委托中选择（任务是委托的下游，必须先有已通过的委托）
   var approvedDelegates = DELEGATES.filter(function(d) { return d.status === '已通过'; });
   var opts = approvedDelegates.map(function(d) {
