@@ -2956,6 +2956,8 @@ function removePersonTag(containerId, hiddenId, idx) {
 }
 
 var _modalStack = [];
+var _pendingLeaders = [];
+var _pendingEngineers = [];
 
 function pushModal(title, body, footer) {
   _modalStack.push({ title: document.getElementById('modalTitle').textContent, body: document.getElementById('modalBody').innerHTML, footer: document.getElementById('modalFooter').innerHTML });
@@ -2971,7 +2973,11 @@ function popModal() {
 function openPersonSelector(type, taskId) {
   var hiddenId = type === 'leader' ? 'assign_leaders_val' : 'assign_engineers_val';
   var hidden = document.getElementById(hiddenId);
-  var selected = hidden.value ? hidden.value.split(',') : [];
+  // 保存当前值到全局变量，因为 pushModal 会销毁这个 DOM
+  var curVals = hidden && hidden.value ? hidden.value.split(',') : [];
+  if (type === 'leader') _pendingLeaders = curVals; else _pendingEngineers = curVals;
+  
+  var selected = type === 'leader' ? _pendingLeaders : _pendingEngineers;
   var title = type === 'leader' ? '选择项目负责人' : '选择测试工程师';
 
   var cbs = PERSON_LIST.map(function(n) {
@@ -2985,19 +2991,28 @@ function openPersonSelector(type, taskId) {
     '</div>';
 
   pushModal(title, body,
-    '<button class="btn btn-primary" onclick="confirmPersonSelector(\'' + type + '\',\'' + hiddenId + '\')">确定</button>' +
+    '<button class="btn btn-primary" onclick="confirmPersonSelector(\'' + type + '\')">确定</button>' +
     '<button class="btn btn-default" onclick="popModal()">取消</button>'
   );
 }
 
-function confirmPersonSelector(type, hiddenId) {
+function confirmPersonSelector(type) {
   var cbs = document.querySelectorAll('input[name="ps_sel"]:checked');
   var vals = [];
   cbs.forEach(function(cb) { vals.push(cb.value); });
-  document.getElementById(hiddenId).value = vals.join(',');
+  
+  // 存到全局变量
+  if (type === 'leader') _pendingLeaders = vals; else _pendingEngineers = vals;
+  
+  // 恢复主弹窗
   popModal();
+  
+  // 现在主弹窗 DOM 已恢复，更新隐藏 input 和标签
+  var hiddenId = type === 'leader' ? 'assign_leaders_val' : 'assign_engineers_val';
   var containerId = type === 'leader' ? 'assign_leader_tags' : 'assign_engineer_tags';
-  setTimeout(function() { renderPersonTags(containerId, hiddenId); }, 50);
+  var hidden = document.getElementById(hiddenId);
+  if (hidden) hidden.value = vals.join(',');
+  renderPersonTags(containerId, hiddenId);
 }
 
 function openTaskAssignModal(taskId) {
