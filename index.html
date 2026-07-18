@@ -3155,9 +3155,12 @@ function confirmTaskAssign(taskId) {
 function openTestPlanModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '测试方案') return;
+  var defFile = t.id + '.CSFA V1.0';
   var body = '<div style="max-width:500px;margin:0 auto">';
-  body += '<div class="form-group"><label>方案文件<span style="color:red">*</span></label>';
-  body += '<input id="tp_file" class="form-input" placeholder="文件名，如 ' + t.id + '.CSFA V1.0" value="' + t.id + '.CSFA V1.0"></div>';
+  body += '<div class="form-group"><label>上传方案文件<span style="color:red">*</span></label>';
+  body += '<div class="form-ctl">';
+  body += '<input type="file" id="tp_upload" style="margin-bottom:6px" onchange="var f=this.files[0];if(f){document.getElementById(\'tp_file\').value=f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="tp_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888"></div></div>';
   body += '<div class="form-group"><label>方案说明</label>';
   body += '<textarea id="tp_desc" class="form-input" rows="4" placeholder="可选，简要描述测试方案内容"></textarea></div>';
   body += '<div style="font-size:12px;color:#999">📄 上传后自动生成编号：{任务编号}.CSFA V{版本号}</div>';
@@ -3232,9 +3235,12 @@ function confirmSchemeReview(taskId) {
 function openUserConfirmModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '用户确认方案') return;
+  var defFile = t.id + '.FAQR V1.0';
   var body = '<div style="max-width:500px;margin:0 auto">';
-  body += '<div class="form-group"><label>用户确认文件<span style="color:red">*</span></label>';
-  body += '<input id="uc_file" class="form-input" placeholder="文件名，如 ' + t.id + '.FAQR V1.0" value="' + t.id + '.FAQR V1.0"></div>';
+  body += '<div class="form-group"><label>上传确认文件<span style="color:red">*</span></label>';
+  body += '<div class="form-ctl">';
+  body += '<input type="file" id="uc_upload" style="margin-bottom:6px" onchange="var f=this.files[0];if(f){document.getElementById(\'uc_file\').value=f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="uc_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888"></div></div>';
   body += '<div style="font-size:12px;color:#999">📄 自动生成编号：{任务编号}.FAQR V{版本号}</div>';
   body += '</div>';
   showModal('📋 用户确认方案 — ' + t.id, body,
@@ -3261,9 +3267,12 @@ function confirmUserConfirm(taskId) {
 function openConfigConfirmModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '测试配置及环境确认') return;
+  var defFile = t.id + '.CSPZ V1.0';
   var body = '<div style="max-width:500px;margin:0 auto">';
-  body += '<div class="form-group"><label>检测配置表文件<span style="color:red">*</span></label>';
-  body += '<input id="cc_file" class="form-input" placeholder="文件名，如 ' + t.id + '.CSPZ V1.0" value="' + t.id + '.CSPZ V1.0"></div>';
+  body += '<div class="form-group"><label>上传配置表文件<span style="color:red">*</span></label>';
+  body += '<div class="form-ctl">';
+  body += '<input type="file" id="cc_upload" style="margin-bottom:6px" onchange="var f=this.files[0];if(f){document.getElementById(\'cc_file\').value=f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="cc_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888"></div></div>';
   body += '<div style="font-size:12px;color:#999">📄 自动生成编号：{任务编号}.CSPZ V{版本号}<br>⚠ 上传后推进至C.实施阶段（测试记录）</div>';
   body += '</div>';
   showModal('⚙️ 测试配置及环境确认 — ' + t.id, body,
