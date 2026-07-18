@@ -445,7 +445,8 @@ var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过'
 // 检测任务数据
 // ============================================================
 var STAGES = [
-  '样品接收', '待样品管理员确认', '任务派工',
+  '未开始',
+  '样品接收', '待样品管理员确认',
   '测试方案', '方案评审', '用户确认方案', '测试配置及环境确认',
   '测试记录', '测试记录评审',
   '回归测试记录', '回归测试问题报告评审',
@@ -453,7 +454,8 @@ var STAGES = [
   '归档', '客户满意度调查'
 ];
 var STAGE_PHASE = {
-  '样品接收': 'A', '待样品管理员确认': 'A', '任务派工': 'A',
+  '未开始': 'A',
+  '样品接收': 'A', '待样品管理员确认': 'A',
   '测试方案': 'B', '方案评审': 'B', '用户确认方案': 'B', '测试配置及环境确认': 'B',
   '测试记录': 'C', '测试记录评审': 'C',
   '回归测试记录': 'D', '回归测试问题报告评审': 'D',
@@ -556,6 +558,53 @@ var MANAGEMENT_ROLES = ['实验室负责人','技术负责人','质量负责人'
 function isManager() { return MANAGEMENT_ROLES.indexOf(LOGIN_ROLE) >= 0; }
 function canAssignTask() {
   return LOGIN_ROLE === '技术负责人' || LOGIN_ROLE === '实验室负责人';
+}
+// ── 任务权限检查 ──
+function isTaskLeaderOrEngineer(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return false;
+  var leaders = t.leaders || [];
+  var engineers = t.engineers || [];
+  if (leaders.indexOf(LOGIN_USER) >= 0) return true;
+  if (engineers.indexOf(LOGIN_USER) >= 0) return true;
+  return false;
+}
+function canOperateTask(taskId) {
+  return isManager() || isTaskLeaderOrEngineer(taskId);
+}
+function canViewTaskOnly(taskId) {
+  return !isManager() && !isTaskLeaderOrEngineer(taskId);
+}
+
+// ── 工单系统 ──
+var WORK_ORDERS = [];
+function createWorkOrder(taskId, stage, title, assignee, content, attachments) {
+  var wo = {
+    id: 'WO-' + new Date().getTime(),
+    taskId: taskId,
+    stage: stage,
+    title: title,
+    assignee: assignee,
+    status: 'pending',
+    content: content || '',
+    attachments: attachments || [],
+    createDate: fmt(new Date()),
+    createBy: LOGIN_USER,
+    result: null,
+    resultDate: null
+  };
+  WORK_ORDERS.push(wo);
+  return wo;
+}
+function completeWorkOrder(taskId, stage, result) {
+  var wos = WORK_ORDERS.filter(function(w) {
+    return w.taskId === taskId && w.stage === stage && w.status === 'pending';
+  });
+  wos.forEach(function(w) {
+    w.status = 'done';
+    w.result = result || '通过';
+    w.resultDate = fmt(new Date());
+  });
 }
 var reviewPage = 1, reviewPageSize = 5, reviewFilteredData = [];
 
@@ -2348,19 +2397,28 @@ function pageTask() {
     var inspectorDisplay = (t.leaders && t.leaders.length > 0) ? t.leaders[0] : (t.inspector || '<span style="color:#999">待分配</span>');
     if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
     var deadlineDisplay = t.deadline || t.planEnd || '-';
+    var canOp = canOperateTask(t.id);
+    var viewOnly = canViewTaskOnly(t.id);
     var ops = '';
-    // 阶段操作按钮（仅管理层可操作）
-    if (t.status === '进行中' && isManager()) {
-      if (t.currentStage === '样品接收') {
+    // 阶段操作按钮（管理层/项目负责人/测试工程师可操作）
+    if (t.status === '进行中' && canOp) {
+      if (t.currentStage === '未开始') {
+        if (isManager() && canAssignTask()) {
+          ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+        } else if (isManager()) {
+          ops += '<span style="color:#999;font-size:12px" title="仅技术负责人/实验室负责人可派工">🔒 无派工权限</span> ';
+        }
+      } else if (t.currentStage === '任务派工') {
+        // 兼容旧数据
+        if (isManager() && canAssignTask()) {
+          ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+        } else if (isManager()) {
+          ops += '<span style="color:#999;font-size:12px" title="仅技术负责人/实验室负责人可派工">🔒 无派工权限</span> ';
+        }
+      } else if (t.currentStage === '样品接收') {
         ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
       } else if (t.currentStage === '待样品管理员确认') {
         ops += '<button class="btn btn-warning btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">待管理员确认</button> ';
-      } else if (t.currentStage === '任务派工') {
-        if (canAssignTask()) {
-          ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
-        } else {
-          ops += '<span style="color:#999;font-size:12px" title="仅技术负责人/实验室负责人可派工">🔒 无派工权限</span> ';
-        }
       } else if (t.currentStage === '测试方案') {
         ops += '<button class="btn btn-primary btn-sm" onclick="openTestPlanModal(\'' + t.id + '\')">编制方案</button> ';
       } else if (t.currentStage === '方案评审') {
@@ -2392,12 +2450,12 @@ function pageTask() {
       }
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
-    if (t.delegateId) {
+    if (t.delegateId && !viewOnly) {
       ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
     }
     // 管理层专属操作
     if (isManager()) {
-      if (t.status === '进行中') {
+      if (t.status !== '已归档' && t.status !== '已终止') {
         ops += ' <button class="btn btn-danger btn-sm" onclick="terminateTask(\'' + t.id + '\')">终止</button>';
       }
       ops += ' <button class="btn btn-default btn-sm" onclick="editTask(\'' + t.id + '\')">编辑</button>';
@@ -2422,7 +2480,7 @@ function pageTask() {
   var domainOpts = DOMAINS.map(function(d) { return '<option value="' + d + '">' + DOMAIN_LABELS[d] + '</option>'; }).join('');
   var stageOpts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
 
-  var activeCount = TASKS.filter(function(t) { return t.status === '进行中'; }).length;
+  var activeCount = TASKS.filter(function(t) { return t.status === '进行中' || t.status === '未开始'; }).length;
   var doneCount = TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; }).length;
 
   taskTab = 'active';
@@ -2465,26 +2523,35 @@ function switchTaskTab(tab) {
   var els = ['task_filter_id','task_filter_client','task_filter_domain','task_filter_stage','task_filter_inspector'];
   els.forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
   // 重新过滤
-  var base = tab === 'active' ? TASKS.filter(function(t) { return t.status === '进行中'; }) : TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; });
+  var base = tab === 'active' ? TASKS.filter(function(t) { return t.status === '进行中' || t.status === '未开始'; }) : TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; });
   taskFiltered = base;
   var rows = taskFiltered.map(function(t) {
     var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
     var inspectorDisplay = (t.leaders && t.leaders.length > 0) ? t.leaders[0] : (t.inspector || '<span style="color:#999">待分配</span>');
     if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
     var deadlineDisplay = t.deadline || t.planEnd || '-';
+    var canOp = canOperateTask(t.id);
+    var viewOnly = canViewTaskOnly(t.id);
     var ops = '';
-    // 阶段操作按钮（仅管理层可操作）
-    if (t.status === '进行中' && isManager()) {
-      if (t.currentStage === '样品接收') {
+    // 阶段操作按钮（管理层/项目负责人/测试工程师可操作）
+    if (t.status === '进行中' && canOp) {
+      if (t.currentStage === '未开始') {
+        if (isManager() && canAssignTask()) {
+          ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+        } else if (isManager()) {
+          ops += '<span style="color:#999;font-size:12px" title="仅技术负责人/实验室负责人可派工">🔒 无派工权限</span> ';
+        }
+      } else if (t.currentStage === '任务派工') {
+        // 兼容旧数据
+        if (isManager() && canAssignTask()) {
+          ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
+        } else if (isManager()) {
+          ops += '<span style="color:#999;font-size:12px" title="仅技术负责人/实验室负责人可派工">🔒 无派工权限</span> ';
+        }
+      } else if (t.currentStage === '样品接收') {
         ops += '<button class="btn btn-success btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">样品接收</button> ';
       } else if (t.currentStage === '待样品管理员确认') {
         ops += '<button class="btn btn-warning btn-sm" onclick="stageReceiveSample(\'' + t.id + '\')">待管理员确认</button> ';
-      } else if (t.currentStage === '任务派工') {
-        if (canAssignTask()) {
-          ops += '<button class="btn btn-primary btn-sm" onclick="openTaskAssignModal(\'' + t.id + '\')">派工</button> ';
-        } else {
-          ops += '<span style="color:#999;font-size:12px" title="仅技术负责人/实验室负责人可派工">🔒 无派工权限</span> ';
-        }
       } else if (t.currentStage === '测试方案') {
         ops += '<button class="btn btn-primary btn-sm" onclick="openTestPlanModal(\'' + t.id + '\')">编制方案</button> ';
       } else if (t.currentStage === '方案评审') {
@@ -2516,10 +2583,10 @@ function switchTaskTab(tab) {
       }
     }
     ops += '<button class="btn btn-default btn-sm" onclick="viewTaskDetail(\'' + t.id + '\')">查看详情</button>';
-    if (t.delegateId) ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
+    if (t.delegateId && !viewOnly) ops += ' <button class="btn btn-default btn-sm" onclick="viewCommissionDetail(\'' + t.delegateId + '\')">查看委托</button>';
     // 管理层专属操作
     if (isManager()) {
-      if (t.status === '进行中') {
+      if (t.status !== '已归档' && t.status !== '已终止') {
         ops += ' <button class="btn btn-danger btn-sm" onclick="terminateTask(\'' + t.id + '\')">终止</button>';
       }
       ops += ' <button class="btn btn-default btn-sm" onclick="editTask(\'' + t.id + '\')">编辑</button>';
@@ -2615,25 +2682,29 @@ function viewTaskDetail(taskId) {
   infoRows += '<tr><td class="sdt-label">项目负责人</td><td>' + (t.leaders ? t.leaders.join('、') : (t.inspector || '<span style="color:#bbb">待分配</span>')) + '</td><td class="sdt-label">测试工程师</td><td>' + (t.engineers ? t.engineers.join('、') : (t.reviewer || '<span style="color:#bbb">待分配</span>')) + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">完成期限</td><td>' + (t.deadline || t.planEnd || '-') + '</td><td class="sdt-label">计划时间</td><td>' + (t.planStart||'-') + ' ~ ' + (t.planEnd||'-') + '</td></tr>';
 
-  // 合同评审信息
-  infoRows += '<tr class="info-section"><td colspan="4">📝 合同评审信息 ' + (rev ? '<span style="font-size:11px;font-weight:normal;color:#52c41a">（' + rev.id + '）</span>' : '<span style="font-size:11px;font-weight:normal;color:#faad14">（未关联）</span>') + '</td></tr>';
-  if (rev) {
-    infoRows += '<tr><td class="sdt-label">合同类型</td><td>' + (rev.ctype||'-') + '</td><td class="sdt-label">评审结论</td><td>' + (rev.conclusion === '通过' ? '<span class="tag tag-green">通过</span>' : (rev.conclusion||'-')) + '</td></tr>';
-    infoRows += '<tr><td class="sdt-label">联系人</td><td>' + (rev.contact||'-') + '</td><td class="sdt-label">联系方式</td><td>' + (rev.phone||'-') + '</td></tr>';
-    infoRows += '<tr><td class="sdt-label">检测内容</td><td colspan="3">' + (rev.testContent||'-') + '</td></tr>';
-    infoRows += '<tr><td class="sdt-label">检测标准依据</td><td>' + (rev.standardBasis||'-') + '</td><td class="sdt-label">合同金额</td><td>' + (rev.contractAmount ? '¥' + rev.contractAmount.toLocaleString() : '-') + '</td></tr>';
-    infoRows += '<tr><td class="sdt-label">交付期</td><td>' + (rev.deliveryDate||'-') + '</td><td class="sdt-label">交付方式</td><td>' + (rev.deliveryMethod||'-') + '</td></tr>';
-    infoRows += '<tr><td class="sdt-label">是否使用标识</td><td>' + (rev.useLogo||'否') + '</td><td class="sdt-label">其他要求</td><td>' + (rev.otherRequirements||'无') + '</td></tr>';
-  } else {
-    infoRows += '<tr><td colspan="4" style="color:#bbb;text-align:center;padding:12px">⚠️ 该任务未关联合同评审记录</td></tr>';
-  }
-
-  // 委托信息
+  // 委托信息（合同信息已整合到委托中）
   infoRows += '<tr class="info-section"><td colspan="4">📨 委托信息 ' + (del ? '<span style="font-size:11px;font-weight:normal;color:#52c41a">（' + del.id + '）</span>' : '<span style="font-size:11px;font-weight:normal;color:#bbb">（未关联）</span>') + '</td></tr>';
   if (del) {
     infoRows += '<tr><td class="sdt-label">委托状态</td><td>' + (del.status === '已通过' ? '<span class="tag tag-green">已通过</span>' : '<span class="tag tag-blue">' + (del.status||'-') + '</span>') + '</td><td class="sdt-label">委托方地址</td><td>' + (del.address||'-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">委托方</td><td>' + (del.client||t.client||'-') + '</td><td class="sdt-label">联系人</td><td>' + (del.contact||'-') + '</td></tr>';
+    infoRows += '<tr><td class="sdt-label">联系方式</td><td>' + (del.phone||'-') + '</td><td class="sdt-label">检测领域</td><td>' + (del.domains ? del.domains.map(function(x){return DOMAIN_LABELS[x]||x;}).join('、') : '-') + '</td></tr>';
     infoRows += '<tr><td class="sdt-label">对象名称版本</td><td colspan="3">' + (del.objNameVer||'-') + '</td></tr>';
+    if (del.testContent) infoRows += '<tr><td class="sdt-label">检测内容</td><td colspan="3">' + del.testContent + '</td></tr>';
+    if (del.standardBasis) infoRows += '<tr><td class="sdt-label">检测标准依据</td><td colspan="3">' + del.standardBasis + '</td></tr>';
+    if (del.deliveryDate) infoRows += '<tr><td class="sdt-label">交付期</td><td>' + del.deliveryDate + '</td><td class="sdt-label">交付方式</td><td>' + (del.deliveryMethod||'-') + '</td></tr>';
     if (del.specialReq) infoRows += '<tr><td class="sdt-label">特殊要求</td><td colspan="3">' + del.specialReq + '</td></tr>';
+    if (del.attachments && del.attachments.length > 0) {
+      infoRows += '<tr><td class="sdt-label">委托附件</td><td colspan="3">';
+      del.attachments.forEach(function(a, i) {
+        if (canViewTaskOnly(taskId)) {
+          infoRows += '<span style="color:#999">📎 ' + a + '</span>（仅查看，不可下载）';
+        } else {
+          infoRows += '<a href="#" onclick="event.preventDefault();alert(\'【原型演示】附件：' + a + '\\n实际开发中此处可下载\')" style="margin-right:8px">📎 ' + a + '</a>';
+        }
+        if (i < del.attachments.length - 1) infoRows += '<br>';
+      });
+      infoRows += '</td></tr>';
+    }
   } else {
     infoRows += '<tr><td colspan="4" style="color:#bbb;text-align:center;padding:12px">该任务未关联委托记录</td></tr>';
   }
@@ -2736,8 +2807,52 @@ function openNewTaskModal() {
 }
 
 function confirmNewTask() {
-  alert('【原型演示】任务创建成功！\n（实际开发中此处会校验编号唯一性并写入数据库）');
+  var delegateId = document.getElementById('newtask_delegate').value;
+  var taskId = document.getElementById('newtask_id').value.trim();
+  var client = document.getElementById('newtask_client').value;
+  var obj = document.getElementById('newtask_obj').value;
+  var domainRaw = document.getElementById('newtask_domain').value;
+  var planEnd = document.getElementById('newtask_planend').value;
+
+  if (!delegateId) { alert('请选择关联委托'); return; }
+  if (!taskId) { alert('请输入任务编号'); return; }
+  if (!planEnd) { alert('请选择计划完成日期'); return; }
+
+  // 从委托获取domain缩写
+  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
+  var domain = d ? d.domains[0] : 'RJ';
+
+  // 检查编号唯一性
+  if (TASKS.some(function(t) { return t.id === taskId; })) {
+    alert('任务编号「' + taskId + '」已存在，请手动修改！');
+    return;
+  }
+
+  var today = fmt(new Date());
+
+  TASKS.push({
+    id: taskId,
+    delegateId: delegateId,
+    client: client,
+    proj: obj,
+    domain: domain,
+    obj: obj,
+    currentStage: '未开始',
+    status: '未开始',
+    inspector: '',
+    reviewer: '',
+    leaders: [],
+    engineers: [],
+    planStart: today,
+    planEnd: planEnd,
+    deadline: '',
+    createDate: today,
+    stageHistory: []
+  });
+
+  alert('✅ 任务创建成功！\n编号：' + taskId + '\n当前阶段：未开始\n请由管理层进行派工后进入样品接收流程');
   closeModal();
+  renderPage();
 }
 
 function viewReviewDetail(reviewId) {
@@ -2799,12 +2914,17 @@ function confirmSampleAdminCheck(taskId) {
   if (!t) return;
   if (LOGIN_ROLE !== '样品管理员') { alert('🔒 仅样品管理员可执行此操作'); return; }
   var samples = SAMPLES.filter(function(s) { return s.taskId === taskId; });
-  if (!confirm('以样品管理员身份确认样品接收无误？\n样品数：' + samples.length + ' 个\n确认后将进入「任务派工」阶段')) return;
+  if (!confirm('以样品管理员身份确认样品接收无误？\n样品数：' + samples.length + ' 个\n确认后将进入「测试方案」阶段')) return;
   var now = new Date();
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  
+  // 创建工单
+  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n委托方：' + t.client + '\n样品数量：' + samples.length + ' 个';
+  createWorkOrder(taskId, '待样品管理员确认', '样品管理员复核确认', '孙工', woContent, []);
+  
   t.stageHistory.push({ stage: '待样品管理员确认', date: ds, operator: LOGIN_USER, sampleCount: samples.length });
-  t.currentStage = '任务派工';
-  alert('✅ 样品管理员已确认！（共 ' + samples.length + ' 个样品）\n进入下一阶段：任务派工');
+  t.currentStage = '测试方案';
+  alert('✅ 样品管理员已确认！（共 ' + samples.length + ' 个样品）\n📋 工单已记录\n进入下一阶段：测试方案（B.方案阶段）');
   if (curPage === 'sample') pageSampleRefresh();
   renderPage();
 }
@@ -3156,7 +3276,8 @@ function confirmPersonSelector(type) {
 
 function openTaskAssignModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  if (!t || t.currentStage !== '任务派工') return;
+  if (!t || (t.currentStage !== '未开始' && t.currentStage !== '任务派工')) return;
+  if (!isManager()) { alert('🔒 权限不足：仅管理层可执行任务派工'); return; }
   if (!canAssignTask()) { alert('🔒 权限不足：仅技术负责人、实验室负责人可执行任务派工'); return; }
   
   var now = new Date();
@@ -3213,9 +3334,10 @@ function confirmTaskAssign(taskId) {
   t.inspector = engineers[0]; // 兼容旧字段，取第一位测试工程师
   
   t.stageHistory.push({ stage: '任务派工', date: ds, operator: LOGIN_USER, leaders: leaders, engineers: engineers, deadline: deadline });
-  t.currentStage = '测试方案';
+  t.currentStage = '样品接收';
+  t.status = '进行中';
   
-  alert('【原型演示】派工完成！\n项目负责人：' + leaders.join('、') + '\n测试工程师：' + engineers.join('、') + '\n完成期限：' + deadline + '\n进入下一阶段：测试方案（B.方案阶段）');
+  alert('【原型演示】派工完成！\n项目负责人：' + leaders.join('、') + '\n测试工程师：' + engineers.join('、') + '\n完成期限：' + deadline + '\n进入下一阶段：样品接收（A.前期准备）');
   closeModal();
   renderPage();
 }
@@ -3288,17 +3410,25 @@ function confirmSchemeReview(taskId) {
   var cbs = document.querySelectorAll('input[name="sr_reviewers"]:checked');
   if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
   var result = document.getElementById('sr_result').value;
+  var opinion = document.getElementById('sr_opinion').value;
   var now = new Date();
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   var reviewers = [];
   cbs.forEach(function(cb) { reviewers.push(cb.value); });
-  t.stageHistory.push({ stage: '方案评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(',') });
+  
+  // 创建工单（派发给每位评审人员）
+  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n委托方：' + t.client + '\n评审阶段：方案评审\n评审意见：' + (opinion || '（待填写）');
+  reviewers.forEach(function(r) {
+    createWorkOrder(taskId, '方案评审', '方案评审', r, woContent, []);
+  });
+  
+  t.stageHistory.push({ stage: '方案评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion });
   if (result === '通过') {
     t.currentStage = '用户确认方案';
-    alert('【原型演示】方案评审全员通过！\n评审人：' + reviewers.join('、') + '\n进入下一阶段：用户确认方案');
+    alert('【原型演示】方案评审全员通过！\n评审人：' + reviewers.join('、') + '\n📋 已派发 ' + reviewers.length + ' 张评审工单\n进入下一阶段：用户确认方案');
   } else {
     t.currentStage = '测试方案';
-    alert('【原型演示】方案评审不通过，退回「测试方案」阶段，请修改后重新提交。');
+    alert('【原型演示】方案评审不通过，退回「测试方案」阶段，请修改后重新提交。\n📋 已派发 ' + reviewers.length + ' 张评审工单');
   }
   closeModal();
   renderPage();
@@ -3369,18 +3499,156 @@ function confirmConfigConfirm(taskId) {
 }
 
 // ============================================================
-// 阶段推进 — C~F 阶段（占位，后续逐步实现）
+// 阶段推进 — C~F 阶段（工单模式）
 // ============================================================
-function openTestRecordModal(taskId) { alert('【原型演示】C阶段·测试记录 —— 功能开发中，敬请期待！'); }
-function openTestRecordReviewModal(taskId) { alert('【原型演示】C阶段·测试记录评审 —— 功能开发中，敬请期待！'); }
-function openRegressionModal(taskId) { alert('【原型演示】D阶段·回归测试记录 —— 功能开发中，敬请期待！'); }
-function openRegressionReviewModal(taskId) { alert('【原型演示】D阶段·回归测试评审 —— 功能开发中，敬请期待！'); }
-function openReportModal(taskId) { alert('【原型演示】E阶段·检测报告 —— 功能开发中，敬请期待！'); }
-function openReportReviewModal(taskId) { alert('【原型演示】E阶段·检测报告评审 —— 功能开发中，敬请期待！'); }
-function openSealApprovalModal(taskId) { alert('【原型演示】E阶段·用印审批 —— 功能开发中，敬请期待！'); }
-function openIssueReportModal(taskId) { alert('【原型演示】E阶段·出具报告 —— 功能开发中，敬请期待！'); }
-function openArchiveModal(taskId) { alert('【原型演示】F阶段·归档 —— 功能开发中，敬请期待！'); }
-function openSurveyModal(taskId) { alert('【原型演示】F阶段·满意度调查 —— 功能开发中，敬请期待！'); }
+function openTestRecordModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '测试记录') return;
+  var defFile = t.id + '.CSSM V1.0';
+  var body = '<div style="max-width:500px;margin:0 auto">' +
+    '<div class="form-group"><label>上传测试记录<span style="color:red">*</span></label>' +
+    '<input id="cs_file" class="form-input" value="' + defFile + '" placeholder="文件名"></div>' +
+    '<div class="form-group"><label>是否有问题</label><select id="cs_issue" class="form-input"><option value="否">否</option><option value="是">是（将进入D阶段）</option></select></div></div>';
+  showModal('📝 测试记录 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmTestRecord(\'' + taskId + '\')">确认提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmTestRecord(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  var fileVal = document.getElementById('cs_file').value.trim();
+  var hasIssue = document.getElementById('cs_issue').value === '是';
+  if (!fileVal) { alert('请输入文件名'); return; }
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '测试记录', date: ds, operator: LOGIN_USER, file: fileVal, hasIssue: hasIssue });
+  if (hasIssue) { t.currentStage = '回归测试记录'; alert('测试记录已提交！\n⚠ 检测到问题，进入D阶段：回归测试记录'); }
+  else {
+    // 创建评审工单
+    createWorkOrder(taskId, '测试记录评审', '测试记录评审', '赵工', '项目：' + t.proj + '\n任务编号：' + t.id, []);
+    t.currentStage = '测试记录评审';
+    alert('测试记录已提交！\n📋 已派发评审工单至赵工\n进入：测试记录评审');
+  }
+  closeModal(); renderPage();
+}
+function openTestRecordReviewModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '测试记录评审') return;
+  var body = '<p>任务：' + t.id + '｜' + t.proj + '</p>' +
+    '<div class="form-group"><label>评审结论</label><select id="cr_result" class="form-input"><option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
+  showModal('评审 — 测试记录', body,
+    '<button class="btn btn-primary" onclick="confirmTestRecordReview(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmTestRecordReview(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  completeWorkOrder(taskId, '测试记录评审', document.getElementById('cr_result').value);
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '测试记录评审', date: ds, operator: LOGIN_USER, result: document.getElementById('cr_result').value });
+  t.currentStage = '检测报告';
+  alert('评审完成！进入：检测报告（E.报告阶段）');
+  closeModal(); renderPage();
+}
+function openRegressionModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '回归测试记录') return;
+  var defFile = t.id + '.WTBG V1.0';
+  var body = '<div style="max-width:500px;margin:0 auto"><div class="form-group"><label>上传回归测试记录</label>' +
+    '<input id="rg_file" class="form-input" value="' + defFile + '" placeholder="文件名"></div></div>';
+  showModal('回归测试记录', body,
+    '<button class="btn btn-primary" onclick="confirmRegression(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmRegression(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  var fileVal = document.getElementById('rg_file').value.trim();
+  if (!fileVal) { alert('请输入文件名'); return; }
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '回归测试记录', date: ds, operator: LOGIN_USER, file: fileVal });
+  createWorkOrder(taskId, '回归测试问题报告评审', '回归测试评审', '赵工', '项目：' + t.proj + '\n文件：' + fileVal, []);
+  t.currentStage = '回归测试问题报告评审';
+  alert('回归记录已提交！📋 已派发评审工单\n进入：回归测试问题报告评审');
+  closeModal(); renderPage();
+}
+function openRegressionReviewModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '回归测试问题报告评审') return;
+  var body = '<p>任务：' + t.id + '｜' + t.proj + '</p>' +
+    '<div class="form-group"><label>评审结论</label><select id="rr_result" class="form-input"><option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
+  showModal('回归测试评审', body,
+    '<button class="btn btn-primary" onclick="confirmRegressionReview(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmRegressionReview(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  completeWorkOrder(taskId, '回归测试问题报告评审', document.getElementById('rr_result').value);
+  t.stageHistory.push({ stage: '回归测试问题报告评审', date: fmt(new Date()), operator: LOGIN_USER, result: document.getElementById('rr_result').value });
+  t.currentStage = '检测报告';
+  alert('评审完成！进入：检测报告（E.报告阶段）');
+  closeModal(); renderPage();
+}
+function openReportModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '检测报告') return;
+  var defFile = t.id + '.JCBG V1.0';
+  var body = '<div style="max-width:500px;margin:0 auto"><div class="form-group"><label>编制检测报告</label>' +
+    '<input id="rp_file" class="form-input" value="' + defFile + '" placeholder="文件名"></div></div>';
+  showModal('检测报告', body,
+    '<button class="btn btn-primary" onclick="confirmReport(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmReport(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  var fileVal = document.getElementById('rp_file').value.trim();
+  if (!fileVal) { alert('请输入文件名'); return; }
+  t.stageHistory.push({ stage: '检测报告', date: fmt(new Date()), operator: LOGIN_USER, file: fileVal });
+  createWorkOrder(taskId, '检测报告评审', '检测报告评审', '赵工', '项目：' + t.proj + '\n报告：' + fileVal, []);
+  t.currentStage = '检测报告评审';
+  alert('报告已提交！📋 已派发评审工单至赵工\n进入：检测报告评审');
+  closeModal(); renderPage();
+}
+function openReportReviewModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '检测报告评审') return;
+  var body = '<p>任务：' + t.id + '｜' + t.proj + '</p>' +
+    '<div class="form-group"><label>评审结论</label><select id="br_result" class="form-input"><option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
+  showModal('检测报告评审', body,
+    '<button class="btn btn-primary" onclick="confirmReportReview(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmReportReview(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  completeWorkOrder(taskId, '检测报告评审', document.getElementById('br_result').value);
+  t.stageHistory.push({ stage: '检测报告评审', date: fmt(new Date()), operator: LOGIN_USER, result: document.getElementById('br_result').value });
+  t.currentStage = '用印审批';
+  alert('报告评审完成！进入：用印审批');
+  closeModal(); renderPage();
+}
+function openSealApprovalModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '用印审批') return;
+  createWorkOrder(taskId, '用印审批', '用印审批', '张工', '项目：' + t.proj + '\n任务编号：' + t.id, []);
+  t.stageHistory.push({ stage: '用印审批', date: fmt(new Date()), operator: LOGIN_USER, result: '通过' });
+  t.currentStage = '出具报告';
+  alert('📋 已派发用印审批工单至张工\n进入：出具报告');
+  renderPage();
+}
+function openIssueReportModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '出具报告') return;
+  t.stageHistory.push({ stage: '出具报告', date: fmt(new Date()), operator: LOGIN_USER });
+  t.currentStage = '归档';
+  alert('报告已出具！进入：归档（F.结项阶段）');
+  renderPage();
+}
+function openArchiveModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '归档') return;
+  t.stageHistory.push({ stage: '归档', date: fmt(new Date()), operator: LOGIN_USER });
+  t.currentStage = '客户满意度调查';
+  t.status = '已完成';
+  alert('归档完成！任务状态更新为已完成\n进入：客户满意度调查');
+  renderPage();
+}
+function openSurveyModal(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== '客户满意度调查') return;
+  t.stageHistory.push({ stage: '客户满意度调查', date: fmt(new Date()), operator: LOGIN_USER });
+  alert('📋 满意度调查已发送至委托方「' + t.client + '」\n🎉 全部流程完成！');
+  renderPage();
+}
 
 // ============================================================
 // 样品管理模块（独立页面）
