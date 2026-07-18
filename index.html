@@ -2931,29 +2931,96 @@ function confirmReceiveSample(taskId) {
   renderPage();
 }
 
+// 可用人员列表
+var PERSON_LIST = ['王工', '李工', '赵工', '孙工', '钱工', '陈工'];
+
+function renderPersonTags(containerId, hiddenId) {
+  var container = document.getElementById(containerId);
+  var hidden = document.getElementById(hiddenId);
+  var vals = hidden.value ? hidden.value.split(',') : [];
+  var html = '';
+  vals.forEach(function(v, i) {
+    html += '<span style="display:inline-flex;align-items:center;background:#e6f7ff;border:1px solid #91d5ff;border-radius:3px;padding:2px 6px;font-size:13px;margin:2px">' +
+      v + '<span style="cursor:pointer;margin-left:4px;color:#999;font-size:14px;line-height:1" onclick="removePersonTag(\'' + containerId + '\',\'' + hiddenId + '\',' + i + ')">×</span></span>';
+  });
+  if (!vals.length) html = '<span style="color:#bbb;font-size:12px">请选择人员</span>';
+  container.innerHTML = html;
+}
+
+function removePersonTag(containerId, hiddenId, idx) {
+  var hidden = document.getElementById(hiddenId);
+  var vals = hidden.value ? hidden.value.split(',') : [];
+  vals.splice(idx, 1);
+  hidden.value = vals.join(',');
+  renderPersonTags(containerId, hiddenId);
+}
+
+var _modalStack = [];
+
+function pushModal(title, body, footer) {
+  _modalStack.push({ title: document.getElementById('modalTitle').textContent, body: document.getElementById('modalBody').innerHTML, footer: document.getElementById('modalFooter').innerHTML });
+  showModal(title, body, footer);
+}
+
+function popModal() {
+  if (_modalStack.length === 0) { closeModal(); return; }
+  var m = _modalStack.pop();
+  showModal(m.title, m.body, m.footer);
+}
+
+function openPersonSelector(type, taskId) {
+  var hiddenId = type === 'leader' ? 'assign_leaders_val' : 'assign_engineers_val';
+  var hidden = document.getElementById(hiddenId);
+  var selected = hidden.value ? hidden.value.split(',') : [];
+  var title = type === 'leader' ? '选择项目负责人' : '选择测试工程师';
+
+  var cbs = PERSON_LIST.map(function(n) {
+    var checked = selected.indexOf(n) >= 0 ? ' checked' : '';
+    return '<label style="display:block;padding:6px 0;cursor:pointer;font-weight:normal"><input type="checkbox" name="ps_sel" value="' + n + '"' + checked + '> ' + n + '</label>';
+  }).join('');
+
+  var body = '<div style="max-width:400px;margin:0 auto">' +
+    '<div style="margin-bottom:8px"><label style="cursor:pointer;color:#1890ff;font-size:13px"><input type="checkbox" onclick="var c=this.checked;var cbs=document.querySelectorAll(\'input[name=ps_sel]\');for(var i=0;i<cbs.length;i++)cbs[i].checked=c;"> 全选 / 取消全选</label></div>' +
+    cbs +
+    '</div>';
+
+  pushModal(title, body,
+    '<button class="btn btn-primary" onclick="confirmPersonSelector(\'' + type + '\',\'' + hiddenId + '\')">确定</button>' +
+    '<button class="btn btn-default" onclick="popModal()">取消</button>'
+  );
+}
+
+function confirmPersonSelector(type, hiddenId) {
+  var cbs = document.querySelectorAll('input[name="ps_sel"]:checked');
+  var vals = [];
+  cbs.forEach(function(cb) { vals.push(cb.value); });
+  document.getElementById(hiddenId).value = vals.join(',');
+  popModal();
+  var containerId = type === 'leader' ? 'assign_leader_tags' : 'assign_engineer_tags';
+  setTimeout(function() { renderPersonTags(containerId, hiddenId); }, 50);
+}
+
 function openTaskAssignModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '任务派工') return;
   
-  // 可用人员
-  var persons = ['王工', '李工', '赵工', '孙工', '钱工', '陈工'];
-  
-  // 项目负责人（多选checkbox）
-  var leaderCbs = persons.map(function(n) {
-    return '<label style="display:inline-block;margin-right:12px;font-weight:normal"><input type="checkbox" name="assign_leader" value="' + n + '"> ' + n + '</label>';
-  }).join('');
-  
-  // 测试工程师（多选checkbox）
-  var engCbs = persons.map(function(n) {
-    return '<label style="display:inline-block;margin-right:12px;font-weight:normal"><input type="checkbox" name="assign_engineer" value="' + n + '"> ' + n + '</label>';
-  }).join('');
-
-  // 完成期限（默认当天，可自定义）
   var now = new Date();
   var today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   
-  var body = '<div class="form-group"><label>项目负责人<span style="color:red">*</span>（可多选）</label><div class="form-ctl" style="padding:6px 0">' + leaderCbs + '</div></div>' +
-    '<div class="form-group"><label>测试工程师<span style="color:red">*</span>（可多选）</label><div class="form-ctl" style="padding:6px 0">' + engCbs + '</div></div>' +
+  var body = '<div class="form-group"><label>项目负责人<span style="color:red">*</span></label>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    '<div id="assign_leader_tags" style="flex:1;min-height:32px;padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;display:flex;flex-wrap:wrap;gap:2px;align-items:center"></div>' +
+    '<button type="button" class="btn btn-default" style="white-space:nowrap" onclick="openPersonSelector(\'leader\',\'' + taskId + '\')">选择</button>' +
+    '</div>' +
+    '<input type="hidden" id="assign_leaders_val" value="">' +
+    '</div>' +
+    '<div class="form-group"><label>测试工程师<span style="color:red">*</span></label>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+    '<div id="assign_engineer_tags" style="flex:1;min-height:32px;padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;display:flex;flex-wrap:wrap;gap:2px;align-items:center"></div>' +
+    '<button type="button" class="btn btn-default" style="white-space:nowrap" onclick="openPersonSelector(\'engineer\',\'' + taskId + '\')">选择</button>' +
+    '</div>' +
+    '<input type="hidden" id="assign_engineers_val" value="">' +
+    '</div>' +
     '<div class="form-group"><label>完成期限<span style="color:red">*</span></label><div class="form-ctl"><input id="assign_deadline" style="width:100%" value="' + today + '" placeholder="如：2026-08-15 或 2026年8月底"></div></div>' +
     '<div style="color:#999;font-size:12px;margin-top:6px">💡 完成期限支持自由格式，默认今天（' + today + '）</div>';
 
@@ -2961,21 +3028,16 @@ function openTaskAssignModal(taskId) {
     '<button class="btn btn-primary" onclick="confirmTaskAssign(\'' + taskId + '\')">确认派工</button>' +
     '<button class="btn btn-default" onclick="closeModal()">取消</button>'
   );
+  renderPersonTags('assign_leader_tags', 'assign_leaders_val');
+  renderPersonTags('assign_engineer_tags', 'assign_engineers_val');
 }
 
 function confirmTaskAssign(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t) return;
   
-  // 收集项目负责人
-  var leaders = [];
-  var leaderCbs = document.querySelectorAll('input[name="assign_leader"]:checked');
-  leaderCbs.forEach(function(cb) { leaders.push(cb.value); });
-  
-  // 收集测试工程师
-  var engineers = [];
-  var engCbs = document.querySelectorAll('input[name="assign_engineer"]:checked');
-  engCbs.forEach(function(cb) { engineers.push(cb.value); });
+  var leaders = (document.getElementById('assign_leaders_val').value || '').split(',').filter(Boolean);
+  var engineers = (document.getElementById('assign_engineers_val').value || '').split(',').filter(Boolean);
   
   var deadline = document.getElementById('assign_deadline').value.trim();
   
