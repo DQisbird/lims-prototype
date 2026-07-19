@@ -2510,7 +2510,7 @@ function pageTask() {
       '<span id="task_count" style="margin-left:auto;color:#666;font-size:13px">共 <b>' + taskFiltered.length + '</b> 条</span>' +
     '</div>' +
     '<table><thead><tr>' +
-    '<th>任务编号</th><th>关联委托</th><th>委托方</th><th>检测领域</th><th>检测对象</th><th>当前阶段</th><th>负责人</th><th>任务状态</th><th>完成期限</th><th>操作</th>' +
+    '<th>任务编号</th><th>关联委托</th><th>委托方</th><th>检测领域</th><th>检测对象</th><th>当前阶段</th><th>负责人</th><th>任务状态</th><th>完成时间</th><th>操作</th>' +
     '</tr></thead><tbody id="task_tbody">' + initialRows + '</tbody></table></div>';
 }
 
@@ -2681,7 +2681,7 @@ function viewTaskDetail(taskId) {
   infoRows += '<tr><td class="sdt-label">项目名称</td><td>' + t.proj + '</td><td class="sdt-label">检测对象</td><td>' + t.obj + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">委托方</td><td>' + t.client + '</td><td class="sdt-label">创建日期</td><td>' + (t.createDate||'-') + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">项目负责人</td><td>' + (t.leaders ? t.leaders.join('、') : (t.inspector || '<span style="color:#bbb">待分配</span>')) + '</td><td class="sdt-label">测试工程师</td><td>' + (t.engineers ? t.engineers.join('、') : (t.reviewer || '<span style="color:#bbb">待分配</span>')) + '</td></tr>';
-  infoRows += '<tr><td class="sdt-label">完成期限</td><td>' + (t.deadline || t.planEnd || '-') + '</td><td class="sdt-label">计划时间</td><td>' + (t.planStart||'-') + ' ~ ' + (t.planEnd||'-') + '</td></tr>';
+  infoRows += '<tr><td class="sdt-label">完成时间</td><td colspan="3">' + (t.deadline || t.planEnd || '-') + '</td></tr>';
   if (t.testContent) infoRows += '<tr><td class="sdt-label">检测内容</td><td colspan="3">' + t.testContent + '</td></tr>';
   if (t.standards) infoRows += '<tr><td class="sdt-label">检测标准依据</td><td colspan="3">' + t.standards + '</td></tr>';
 
@@ -2743,7 +2743,7 @@ function editTask(taskId) {
     '<div class="form-group"><label>委托方</label><div class="form-ctl"><input id="edit_client" value="' + (t.client||'') + '"></div></div>' +
     '<div class="form-group"><label>检测对象</label><div class="form-ctl"><input id="edit_obj" value="' + (t.obj||'') + '"></div></div>' +
     '<div class="form-group"><label>项目名称</label><div class="form-ctl"><input id="edit_proj" value="' + (t.proj||'') + '"></div></div>' +
-    '<div class="form-group"><label>完成期限</label><div class="form-ctl"><input type="date" id="edit_planend" value="' + (t.planEnd||'') + '"></div></div>';
+    '<div class="form-group"><label>完成时间</label><div class="form-ctl"><input type="text" id="edit_planend" value="' + (t.planEnd||'') + '" placeholder="如：2026-12-31 或 2026年12月底"></div></div>';
   showModal('编辑任务 — ' + t.id, body,
     '<button class="btn btn-primary" onclick="confirmEditTask(\'' + taskId + '\')">保存修改</button>' +
     '<button class="btn btn-default" onclick="closeModal()">取消</button>');
@@ -2828,8 +2828,7 @@ function openNewTaskModal() {
     '</div></div>' +
     '<div class="form-group"><label>检测内容</label><div class="form-ctl"><textarea id="newtask_content" rows="3" placeholder="检测的具体内容和范围"></textarea></div></div>' +
     '<div class="form-group"><label>检测标准依据</label><div class="form-ctl"><input id="newtask_standards" placeholder="如 GB/T 25000.51-2016"></div></div>' +
-    '<div class="form-group"><label>计划开始日期</label><div class="form-ctl"><input type="date" id="newtask_planstart"></div></div>' +
-    '<div class="form-group"><label>计划完成日期</label><div class="form-ctl"><input type="date" id="newtask_planend"></div></div>';
+    '<div class="form-group"><label>完成时间</label><div class="form-ctl"><input type="text" id="newtask_planend" placeholder="如：2026-12-31 或 2026年12月底"></div></div>';
 
   showModal('新建检测任务', body,
     '<button class="btn btn-primary" onclick="confirmNewTask()">确认创建</button>' +
@@ -2853,8 +2852,6 @@ function openNewTaskModal() {
         document.getElementById('newtask_content').value = d.testContent || '';
         document.getElementById('newtask_standards').value = d.standards || '';
         document.getElementById('newtask_planend').value = d.deadline || '';
-        var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-        document.getElementById('newtask_planstart').value = todayStr;
       }
     };
     // 点击外部关闭领域下拉
@@ -2876,14 +2873,13 @@ function confirmNewTask() {
   var obj = document.getElementById('newtask_obj').value.trim();
   var content = document.getElementById('newtask_content').value.trim();
   var standards = document.getElementById('newtask_standards').value.trim();
-  var planStart = document.getElementById('newtask_planstart').value;
-  var planEnd = document.getElementById('newtask_planend').value;
+  var deadline = document.getElementById('newtask_planend').value.trim();
 
   if (!delegateId) { alert('请选择关联委托'); return; }
   if (!taskId) { alert('请输入任务编号'); return; }
   if (!obj) { alert('请输入检测对象'); return; }
   if (_domainSelected.length === 0) { alert('请至少选择一个检测领域'); return; }
-  if (!planEnd) { alert('请选择计划完成日期'); return; }
+  if (!deadline) { alert('请填写完成时间'); return; }
 
   // 主领域取第一个，兼容旧字段
   var domain = _domainSelected[0];
@@ -2910,8 +2906,8 @@ function confirmNewTask() {
     reviewer: '',
     leaders: [],
     engineers: [],
-    planStart: planStart || today,
-    planEnd: planEnd,
+    planStart: deadline,
+    planEnd: deadline,
     deadline: '',
     createDate: today,
     testContent: content,
