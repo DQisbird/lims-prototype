@@ -2393,7 +2393,7 @@ function pageTask() {
   }
 
   function rowHtml(t) {
-    var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
+    var domainLabel = t.domains ? t.domains.map(function(d){return DOMAIN_LABELS[d]||d;}).join('、') : (DOMAIN_LABELS[t.domain] || t.domain);
     var inspectorDisplay = (t.leaders && t.leaders.length > 0) ? t.leaders[0] : (t.inspector || '<span style="color:#999">待分配</span>');
     if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
     var deadlineDisplay = t.deadline || t.planEnd || '-';
@@ -2526,7 +2526,7 @@ function switchTaskTab(tab) {
   var base = tab === 'active' ? TASKS.filter(function(t) { return t.status === '进行中' || t.status === '未开始'; }) : TASKS.filter(function(t) { return t.status === '已完成' || t.status === '已归档' || t.status === '已终止'; });
   taskFiltered = base;
   var rows = taskFiltered.map(function(t) {
-    var domainLabel = DOMAIN_LABELS[t.domain] || t.domain;
+    var domainLabel = t.domains ? t.domains.map(function(d){return DOMAIN_LABELS[d]||d;}).join('、') : (DOMAIN_LABELS[t.domain] || t.domain);
     var inspectorDisplay = (t.leaders && t.leaders.length > 0) ? t.leaders[0] : (t.inspector || '<span style="color:#999">待分配</span>');
     if (t.leaders && t.leaders.length > 1) inspectorDisplay += ' +' + (t.leaders.length-1);
     var deadlineDisplay = t.deadline || t.planEnd || '-';
@@ -2676,11 +2676,14 @@ function viewTaskDetail(taskId) {
   // 任务信息
   infoRows += '<tr class="info-section"><td colspan="4">📋 任务信息</td></tr>';
   infoRows += '<tr><td class="sdt-label">任务编号</td><td>' + t.id + '</td><td class="sdt-label">任务状态</td><td>' + statusTag(t.status) + '</td></tr>';
-  infoRows += '<tr><td class="sdt-label">检测领域</td><td>' + (DOMAIN_LABELS[t.domain]||t.domain) + '</td><td class="sdt-label">当前阶段</td><td>' + t.currentStage + '</td></tr>';
+  var domainDisplay = t.domains ? t.domains.map(function(d){return DOMAIN_LABELS[d]||d;}).join('、') : (DOMAIN_LABELS[t.domain]||t.domain);
+  infoRows += '<tr><td class="sdt-label">检测领域</td><td>' + domainDisplay + '</td><td class="sdt-label">当前阶段</td><td>' + t.currentStage + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">项目名称</td><td>' + t.proj + '</td><td class="sdt-label">检测对象</td><td>' + t.obj + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">委托方</td><td>' + t.client + '</td><td class="sdt-label">创建日期</td><td>' + (t.createDate||'-') + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">项目负责人</td><td>' + (t.leaders ? t.leaders.join('、') : (t.inspector || '<span style="color:#bbb">待分配</span>')) + '</td><td class="sdt-label">测试工程师</td><td>' + (t.engineers ? t.engineers.join('、') : (t.reviewer || '<span style="color:#bbb">待分配</span>')) + '</td></tr>';
   infoRows += '<tr><td class="sdt-label">完成期限</td><td>' + (t.deadline || t.planEnd || '-') + '</td><td class="sdt-label">计划时间</td><td>' + (t.planStart||'-') + ' ~ ' + (t.planEnd||'-') + '</td></tr>';
+  if (t.testContent) infoRows += '<tr><td class="sdt-label">检测内容</td><td colspan="3">' + t.testContent + '</td></tr>';
+  if (t.standards) infoRows += '<tr><td class="sdt-label">检测标准依据</td><td colspan="3">' + t.standards + '</td></tr>';
 
   // 委托信息（合同信息已整合到委托中）
   infoRows += '<tr class="info-section"><td colspan="4">📨 委托信息 ' + (del ? '<span style="font-size:11px;font-weight:normal;color:#52c41a">（' + del.id + '）</span>' : '<span style="font-size:11px;font-weight:normal;color:#bbb">（未关联）</span>') + '</td></tr>';
@@ -2768,19 +2771,64 @@ function deleteTask(taskId) {
   renderPage();
 }
 
+// ── 检测领域多选面板 ──
+var _domainSelected = [];
+function toggleDomainPanel() {
+  var panel = document.getElementById('domain_panel');
+  if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+}
+function toggleDomainCheck(dm) {
+  var idx = _domainSelected.indexOf(dm);
+  if (idx >= 0) _domainSelected.splice(idx, 1);
+  else _domainSelected.push(dm);
+  refreshDomainTags();
+}
+function refreshDomainTags() {
+  var tagsEl = document.getElementById('newtask_domain_tags');
+  var panel = document.getElementById('domain_panel');
+  if (tagsEl) {
+    if (_domainSelected.length === 0) tagsEl.innerHTML = '<span class="ts-placeholder">点击选择检测领域</span>';
+    else tagsEl.innerHTML = _domainSelected.map(function(d) {
+      return '<span class="ts-tag">' + DOMAIN_LABELS[d] + ' <span class="ts-close" onclick="event.stopPropagation();toggleDomainCheck(\'' + d + '\')">×</span></span>';
+    }).join('');
+  }
+  if (panel) {
+    DOMAINS.forEach(function(d) {
+      var cb = document.getElementById('domain_cb_' + d);
+      if (cb) cb.checked = _domainSelected.indexOf(d) >= 0;
+    });
+  }
+}
+
 function openNewTaskModal() {
   if (!isManager()) { alert('仅管理层可新建任务'); return; }
-  // 从已通过的委托中选择（任务是委托的下游，必须先有已通过的委托）
   var approvedDelegates = DELEGATES.filter(function(d) { return d.status === '已通过'; });
   var opts = approvedDelegates.map(function(d) {
     return '<option value="' + d.id + '">' + d.objNameVer + ' (' + d.client + ')</option>';
   }).join('');
-  
-  var body = '<div class="form-group"><label>关联委托</label><div class="form-ctl"><select id="newtask_delegate" style="width:100%"><option value="">-- 请选择 --</option>' + opts + '</select></div></div>' +
-    '<div class="form-group"><label>任务编号</label><div class="form-ctl"><input id="newtask_id" placeholder="自动生成，支持手动修改"></div></div>' +
+
+  var domainChecks = DOMAINS.map(function(d) {
+    return '<label class="ms-opt"><input type="checkbox" id="domain_cb_' + d + '" value="' + d + '" onclick="toggleDomainCheck(\'' + d + '\')">' + DOMAIN_LABELS[d] + ' [' + d + ']</label>';
+  }).join('');
+
+  var body = '' +
+    '<div class="form-group"><label>关联委托</label><div class="form-ctl"><select id="newtask_delegate" style="width:100%"><option value="">-- 请选择已通过的委托 --</option>' + opts + '</select></div></div>' +
+    '<div class="form-group"><label>任务编号</label><div class="form-ctl"><input id="newtask_id" placeholder="选择委托后自动生成，可手动修改"></div></div>' +
     '<div class="form-group"><label>委托方</label><div class="form-ctl"><input id="newtask_client" readonly style="background:#f5f5f5"></div></div>' +
-    '<div class="form-group"><label>检测对象</label><div class="form-ctl"><input id="newtask_obj" readonly style="background:#f5f5f5"></div></div>' +
-    '<div class="form-group"><label>检测领域</label><div class="form-ctl"><input id="newtask_domain" readonly style="background:#f5f5f5"></div></div>' +
+    '<div class="form-group"><label>项目名称</label><div class="form-ctl"><input id="newtask_proj" readonly style="background:#f5f5f5"></div></div>' +
+    '<div class="form-group"><label>检测对象</label><div class="form-ctl"><input id="newtask_obj" placeholder="默认为项目名称，可修改"></div></div>' +
+    '<div class="form-group"><label>检测领域</label><div class="form-ctl" style="position:relative">' +
+      '<div class="tag-select" id="newtask_domain_tags" onclick="toggleDomainPanel()" style="min-height:36px;padding:6px 10px;cursor:pointer">' +
+        '<span class="ts-placeholder">点击选择检测领域</span>' +
+      '</div>' +
+      '<div class="ms-list" id="domain_panel" style="display:none;position:absolute;top:100%;left:0;width:100%;z-index:50;background:#fff;border:1px solid #1890ff;border-top:none;border-radius:0 0 6px 6px;max-height:220px;box-shadow:0 4px 12px rgba(0,0,0,.12)">' +
+        domainChecks +
+      '</div>' +
+    '</div></div>' +
+    '<div class="form-group"><label>检测内容</label><div class="form-ctl"><textarea id="newtask_content" rows="3" placeholder="检测的具体内容和范围"></textarea></div></div>' +
+    '<div class="form-group"><label>检测标准依据</label><div class="form-ctl"><input id="newtask_standards" placeholder="如 GB/T 25000.51-2016"></div></div>' +
+    '<div class="form-group"><label>计划开始日期</label><div class="form-ctl"><input type="date" id="newtask_planstart"></div></div>' +
     '<div class="form-group"><label>计划完成日期</label><div class="form-ctl"><input type="date" id="newtask_planend"></div></div>';
 
   showModal('新建检测任务', body,
@@ -2794,15 +2842,29 @@ function openNewTaskModal() {
       var did = sel.value;
       var d = DELEGATES.filter(function(x) { return x.id === did; })[0];
       if (d) {
-        var domainLabel = DOMAIN_LABELS[d.domains[0]] || d.domains[0];
         var now = new Date();
         var dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
         document.getElementById('newtask_id').value = 'TZJC/JSJL-' + d.domains[0] + dateStr;
-        document.getElementById('newtask_client').value = d.client;
-        document.getElementById('newtask_obj').value = d.objNameVer;
-        document.getElementById('newtask_domain').value = domainLabel;
+        document.getElementById('newtask_client').value = d.client || '';
+        document.getElementById('newtask_proj').value = d.objNameVer || '';
+        document.getElementById('newtask_obj').value = d.objNameVer || '';
+        _domainSelected = d.domains ? d.domains.slice() : [];
+        refreshDomainTags();
+        document.getElementById('newtask_content').value = d.testContent || '';
+        document.getElementById('newtask_standards').value = d.standards || '';
+        document.getElementById('newtask_planend').value = d.deadline || '';
+        var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        document.getElementById('newtask_planstart').value = todayStr;
       }
     };
+    // 点击外部关闭领域下拉
+    document.addEventListener('click', function(e) {
+      var panel = document.getElementById('domain_panel');
+      var tags = document.getElementById('newtask_domain_tags');
+      if (panel && panel.style.display === 'block' && !panel.contains(e.target) && e.target !== tags && !tags.contains(e.target)) {
+        panel.style.display = 'none';
+      }
+    });
   }, 10);
 }
 
@@ -2810,17 +2872,21 @@ function confirmNewTask() {
   var delegateId = document.getElementById('newtask_delegate').value;
   var taskId = document.getElementById('newtask_id').value.trim();
   var client = document.getElementById('newtask_client').value;
-  var obj = document.getElementById('newtask_obj').value;
-  var domainRaw = document.getElementById('newtask_domain').value;
+  var proj = document.getElementById('newtask_proj').value;
+  var obj = document.getElementById('newtask_obj').value.trim();
+  var content = document.getElementById('newtask_content').value.trim();
+  var standards = document.getElementById('newtask_standards').value.trim();
+  var planStart = document.getElementById('newtask_planstart').value;
   var planEnd = document.getElementById('newtask_planend').value;
 
   if (!delegateId) { alert('请选择关联委托'); return; }
   if (!taskId) { alert('请输入任务编号'); return; }
+  if (!obj) { alert('请输入检测对象'); return; }
+  if (_domainSelected.length === 0) { alert('请至少选择一个检测领域'); return; }
   if (!planEnd) { alert('请选择计划完成日期'); return; }
 
-  // 从委托获取domain缩写
-  var d = DELEGATES.filter(function(x) { return x.id === delegateId; })[0];
-  var domain = d ? d.domains[0] : 'RJ';
+  // 主领域取第一个，兼容旧字段
+  var domain = _domainSelected[0];
 
   // 检查编号唯一性
   if (TASKS.some(function(t) { return t.id === taskId; })) {
@@ -2834,8 +2900,9 @@ function confirmNewTask() {
     id: taskId,
     delegateId: delegateId,
     client: client,
-    proj: obj,
+    proj: proj,
     domain: domain,
+    domains: _domainSelected.slice(),
     obj: obj,
     currentStage: '未开始',
     status: '未开始',
@@ -2843,14 +2910,16 @@ function confirmNewTask() {
     reviewer: '',
     leaders: [],
     engineers: [],
-    planStart: today,
+    planStart: planStart || today,
     planEnd: planEnd,
     deadline: '',
     createDate: today,
+    testContent: content,
+    standards: standards,
     stageHistory: []
   });
 
-  alert('✅ 任务创建成功！\n编号：' + taskId + '\n当前阶段：未开始\n请由管理层进行派工后进入样品接收流程');
+  alert('✅ 任务创建成功！\n编号：' + taskId + '\n检测领域：' + _domainSelected.map(function(d){return DOMAIN_LABELS[d];}).join('、') + '\n当前阶段：未开始\n请由管理层进行派工后进入样品接收流程');
   closeModal();
   renderPage();
 }
