@@ -626,6 +626,10 @@ function pendingCount() {
       });
     }
   });
+  // 样品管理员确认工单
+  WORK_ORDERS.forEach(function(w) {
+    if (w.status === 'pending' && w.assignee === LOGIN_USER) count++;
+  });
   return count;
 }
 
@@ -846,6 +850,15 @@ function pageTodo() {
       });
     }
   });
+  // 样品管理员确认工单
+  WORK_ORDERS.forEach(function(w) {
+    if (w.status === 'pending' && w.assignee === LOGIN_USER) {
+      var t = TASKS.filter(function(x) { return x.id === w.taskId; })[0];
+      if (t) {
+        todos.push({ type: '样品管理员确认', refId: w.taskId, project: t.proj, client: t.client, date: w.createDate, target: 'sampleAdmin', action: 'sampleAdmin', woId: w.id });
+      }
+    }
+  });
 
   if (todos.length === 0) {
     return '<div class="card"><div class="card-title">待办工单</div><div style="text-align:center;padding:40px;color:#999;font-size:15px">&#127881; 暂无待办工单</div></div>';
@@ -862,7 +875,7 @@ function pageTodo() {
   return '<div class="card"><div class="card-title">待办工单</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option></select>' +
+        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option><option value="样品管理员确认">样品管理员确认</option></select>' +
         '<input placeholder="项目名称" id="todo_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="客户名称" id="todo_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="编号" id="todo_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
@@ -899,6 +912,15 @@ function pageDone() {
       });
     }
   });
+  // 样品管理员确认已办
+  WORK_ORDERS.forEach(function(w) {
+    if (w.status === 'done' && w.assignee === LOGIN_USER) {
+      var t = TASKS.filter(function(x) { return x.id === w.taskId; })[0];
+      if (t) {
+        doneList.push({ id: w.taskId, project: t.proj, client: t.client, date: w.createDate, conclusion: w.result, processTime: w.resultDate || w.createDate, type: '样品管理员确认' });
+      }
+    }
+  });
 
   doneList.sort(function(a, b) { return (b.processTime || b.date).localeCompare(a.processTime || a.date); });
 
@@ -919,7 +941,7 @@ function pageDone() {
   return '<div class="card"><div class="card-title">已办工单</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<select id="done_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option></select>' +
+        '<select id="done_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option><option value="样品管理员确认">样品管理员确认</option></select>' +
         '<input placeholder="项目名称" id="done_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="客户名称" id="done_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="编号" id="done_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
@@ -2983,9 +3005,8 @@ function confirmSampleAdminCheck(taskId) {
   var now = new Date();
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   
-  // 创建工单
-  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n委托方：' + t.client + '\n样品数量：' + samples.length + ' 个';
-  createWorkOrder(taskId, '待样品管理员确认', '样品管理员复核确认', '孙工', woContent, []);
+  // 完成工单
+  completeWorkOrder(taskId, '待样品管理员确认', '通过');
   
   t.stageHistory.push({ stage: '待样品管理员确认', date: ds, operator: LOGIN_USER, sampleCount: samples.length });
   t.currentStage = '测试方案';
@@ -3250,7 +3271,10 @@ function confirmReceiveSample(taskId) {
   var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   t.stageHistory.push({ stage: '样品接收', date: ds, operator: LOGIN_USER, sampleCount: samples.length });
   t.currentStage = '待样品管理员确认';
-  alert('✅ 样品已确认接收！（共 ' + samples.length + ' 个样品）\n当前阶段：待样品管理员确认\n💡 请切换至样品管理员角色（孙工）进行复核确认');
+  // 创建样品管理员确认工单
+  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n委托方：' + t.client + '\n样品数量：' + samples.length + ' 个';
+  createWorkOrder(taskId, '待样品管理员确认', '样品管理员复核确认', '孙工', woContent, []);
+  alert('✅ 样品已确认接收！（共 ' + samples.length + ' 个样品）\n当前阶段：待样品管理员确认\n💡 工单已派发至样品管理员（孙工），请切换角色处理');
   if (curPage === 'sample') pageSampleRefresh();
   renderPage();
 }
