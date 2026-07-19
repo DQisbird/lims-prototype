@@ -446,7 +446,7 @@ var DELEGATE_STATUS = { '待审批': 'default', '审批中': 'blue', '已通过'
 // ============================================================
 var STAGES = [
   '未开始',
-  '样品接收', '待样品管理员确认',
+  '样品接收', '待样品管理员确认', '任务派工',
   '测试方案', '方案评审', '用户确认方案', '测试配置及环境确认',
   '测试记录', '测试记录评审',
   '回归测试记录', '回归测试问题报告评审',
@@ -455,7 +455,7 @@ var STAGES = [
 ];
 var STAGE_PHASE = {
   '未开始': 'A',
-  '样品接收': 'A', '待样品管理员确认': 'A',
+  '样品接收': 'A', '待样品管理员确认': 'A', '任务派工': 'A',
   '测试方案': 'B', '方案评审': 'B', '用户确认方案': 'B', '测试配置及环境确认': 'B',
   '测试记录': 'C', '测试记录评审': 'C',
   '回归测试记录': 'D', '回归测试问题报告评审': 'D',
@@ -3427,6 +3427,10 @@ function confirmTaskAssign(taskId) {
   t.deadline = deadline;
   t.inspector = engineers[0]; // 兼容旧字段，取第一位测试工程师
   
+  // 如果从未开始状态派工，先标记未开始为已完成
+  if (t.currentStage === '未开始') {
+    t.stageHistory.push({ stage: '未开始', date: ds, operator: LOGIN_USER });
+  }
   t.stageHistory.push({ stage: '任务派工', date: ds, operator: LOGIN_USER, leaders: leaders, engineers: engineers, deadline: deadline });
   t.currentStage = '样品接收';
   t.status = '进行中';
