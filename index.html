@@ -865,9 +865,14 @@ function pageTodo() {
   }
 
   var rows = todos.map(function(t) {
-    var btnHtml = t.action === 'approval'
-      ? '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + t.refId + '\')">处理</button>'
-      : '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + t.refId + '\')">处理</button>';
+    var btnHtml;
+    if (t.action === 'approval') {
+      btnHtml = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + t.refId + '\')">处理</button>';
+    } else if (t.action === 'sampleAdmin') {
+      btnHtml = '<button class="btn btn-primary btn-sm" onclick="stageReceiveSample(\'' + t.refId + '\')">处理</button>';
+    } else {
+      btnHtml = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + t.refId + '\')">处理</button>';
+    }
     return '<tr><td>' + t.type + '</td><td>' + t.project + '</td><td>' + t.client + '</td><td>' + t.date + '</td><td>' + t.refId + '</td>' +
       '<td>' + btnHtml + '</td></tr>';
   }).join('');
