@@ -3610,14 +3610,26 @@ function confirmConfigConfirm(taskId) {
 // ============================================================
 // 阶段推进 — C~F 阶段（工单模式）
 // ============================================================
+// C1. 测试记录 (2.3.8)
 function openTestRecordModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '测试记录') return;
   var defFile = t.id + '.CSSM V1.0';
-  var body = '<div style="max-width:500px;margin:0 auto">' +
-    '<div class="form-group"><label>上传测试记录<span style="color:red">*</span></label>' +
-    '<input id="cs_file" class="form-input" value="' + defFile + '" placeholder="文件名"></div>' +
-    '<div class="form-group"><label>是否有问题</label><select id="cs_issue" class="form-input"><option value="否">否</option><option value="是">是（将进入D阶段）</option></select></div></div>';
+  var issueFile = t.id + '.WTBG V1.0';
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<div class="form-group"><label>测试记录文件<span style="color:red">*</span></label><div class="form-ctl">';
+  body += '<label for="cs_upload" class="btn btn-primary btn-sm" style="cursor:pointer;margin-bottom:6px">📎 选择文件上传</label>';
+  body += '<span id="cs_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="cs_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'cs_file\').value=f.name;document.getElementById(\'cs_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="cs_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div>';
+  body += '<div class="form-group"><label>是否发现问题</label><select id="cs_issue" class="form-input" onchange="var d=document.getElementById(\'cs_issue_group\');if(this.value===\'是\'){d.style.display=\'flex\'}else{d.style.display=\'none\'}">';
+  body += '<option value="否">否</option><option value="是">是（将进入D阶段-问题处理）</option></select></div>';
+  body += '<div id="cs_issue_group" style="display:none"><div class="form-group"><label>问题报告文件<span style="color:red">*</span></label><div class="form-ctl">';
+  body += '<label for="cs_issue_upload" class="btn btn-danger btn-sm" style="cursor:pointer;margin-bottom:6px">📎 上传问题报告</label>';
+  body += '<span id="cs_issue_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="cs_issue_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'cs_issue_file\').value=f.name;document.getElementById(\'cs_issue_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="cs_issue_file" class="form-input" placeholder="文件名（自动填充）" value="' + issueFile + '" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div></div>';
+  body += '<div style="font-size:12px;color:#999">📄 自动生成编号：{任务编号}.CSSM V{版本号}</div></div>';
   showModal('📝 测试记录 — ' + t.id, body,
     '<button class="btn btn-primary" onclick="confirmTestRecord(\'' + taskId + '\')">确认提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
 }
@@ -3625,138 +3637,416 @@ function confirmTestRecord(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   var fileVal = document.getElementById('cs_file').value.trim();
   var hasIssue = document.getElementById('cs_issue').value === '是';
-  if (!fileVal) { alert('请输入文件名'); return; }
+  if (!fileVal) { alert('请上传测试记录文件'); return; }
+  var issueFileVal = '';
+  if (hasIssue) {
+    issueFileVal = document.getElementById('cs_issue_file').value.trim();
+    if (!issueFileVal) { alert('发现问题时请上传问题报告文件'); return; }
+  }
   var ds = fmt(new Date());
-  t.stageHistory.push({ stage: '测试记录', date: ds, operator: LOGIN_USER, file: fileVal, hasIssue: hasIssue });
-  if (hasIssue) { t.currentStage = '回归测试记录'; alert('测试记录已提交！\n⚠ 检测到问题，进入D阶段：回归测试记录'); }
-  else {
-    // 创建评审工单
-    createWorkOrder(taskId, '测试记录评审', '测试记录评审', '赵工', '项目：' + t.proj + '\n任务编号：' + t.id, []);
+  t.stageHistory.push({ stage: '测试记录', date: ds, operator: LOGIN_USER, file: fileVal, hasIssue: hasIssue, issueFile: issueFileVal || undefined });
+  if (hasIssue) {
+    t.currentStage = '回归测试记录';
+    alert('【原型演示】测试记录已提交！\n⚠ 检测到问题，问题报告：' + issueFileVal + '\n进入D阶段：回归测试记录');
+  } else {
+    createWorkOrder(taskId, '测试记录评审', '测试记录评审', '赵工', '项目：' + t.proj + '\n任务编号：' + t.id + '\n文件：' + fileVal, []);
     t.currentStage = '测试记录评审';
-    alert('测试记录已提交！\n📋 已派发评审工单至赵工\n进入：测试记录评审');
+    alert('【原型演示】测试记录已提交！\n文件：' + fileVal + '\n📋 已派发评审工单至赵工\n进入：测试记录评审');
   }
   closeModal(); renderPage();
 }
+// C2. 测试记录评审 (2.3.9)
 function openTestRecordReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '测试记录评审') return;
-  var body = '<p>任务：' + t.id + '｜' + t.proj + '</p>' +
-    '<div class="form-group"><label>评审结论</label><select id="cr_result" class="form-input"><option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
-  showModal('评审 — 测试记录', body,
-    '<button class="btn btn-primary" onclick="confirmTestRecordReview(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
+  var body = '<div style="max-width:600px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
+  reviewers.forEach(function(r, i) {
+    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="cr_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
+  });
+  body += '</div><hr style="margin:12px 0">';
+  body += '<div class="form-group"><label>评审意见汇总</label>';
+  body += '<textarea id="cr_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
+  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
+  body += '<select id="cr_result" class="form-input" onchange="var d=document.getElementById(\'cr_reject_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'cr_reject_reason\').value=\'\'}">';
+  body += '<option value="通过">✅ 通过</option><option value="不通过">❌ 不通过 — 退回测试记录</option></select></div>';
+  body += '<div class="form-group" id="cr_reject_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
+  body += '<textarea id="cr_reject_reason" class="form-input" rows="3" placeholder="不通过时必填"></textarea></div></div>';
+  showModal('🔍 测试记录评审 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmTestRecordReview(\'' + taskId + '\')">提交评审</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
 }
 function confirmTestRecordReview(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  completeWorkOrder(taskId, '测试记录评审', document.getElementById('cr_result').value);
+  if (!t) return;
+  var cbs = document.querySelectorAll('input[name="cr_reviewers"]:checked');
+  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
+  var result = document.getElementById('cr_result').value;
+  var opinion = document.getElementById('cr_opinion').value;
+  var rejectReason = (document.getElementById('cr_reject_reason').value || '').trim();
+  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
+  completeWorkOrder(taskId, '测试记录评审', result);
   var ds = fmt(new Date());
-  t.stageHistory.push({ stage: '测试记录评审', date: ds, operator: LOGIN_USER, result: document.getElementById('cr_result').value });
-  t.currentStage = '检测报告';
-  alert('评审完成！进入：检测报告（E.报告阶段）');
+  var reviewers = [];
+  cbs.forEach(function(cb) { reviewers.push(cb.value); });
+  t.stageHistory.push({ stage: '测试记录评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
+  if (result === '通过') {
+    t.currentStage = '检测报告';
+    alert('【原型演示】测试记录评审全员通过！\n评审人：' + reviewers.join('、') + '\n进入：检测报告（E.报告阶段）');
+  } else {
+    t.currentStage = '测试记录';
+    alert('【原型演示】测试记录评审不通过，退回「测试记录」阶段。\n原因：' + rejectReason);
+  }
   closeModal(); renderPage();
 }
+// D1. 回归测试记录 (2.3.10)
 function openRegressionModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '回归测试记录') return;
-  var defFile = t.id + '.WTBG V1.0';
-  var body = '<div style="max-width:500px;margin:0 auto"><div class="form-group"><label>上传回归测试记录</label>' +
-    '<input id="rg_file" class="form-input" value="' + defFile + '" placeholder="文件名"></div></div>';
-  showModal('回归测试记录', body,
+  var defFile = t.id + '.CSSM V1.0';
+  var issueFile = t.id + '.WTBG V1.0';
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<div class="form-group"><label>回归测试记录<span style="color:red">*</span></label><div class="form-ctl">';
+  body += '<label for="rg_upload" class="btn btn-primary btn-sm" style="cursor:pointer;margin-bottom:6px">📎 选择文件上传</label>';
+  body += '<span id="rg_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="rg_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'rg_file\').value=f.name;document.getElementById(\'rg_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="rg_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div>';
+  body += '<div class="form-group"><label>问题是否修复</label><select id="rg_fixed" class="form-input"><option value="是">✅ 是</option><option value="否">❌ 否</option></select></div>';
+  body += '<div class="form-group"><label>是否产生新问题</label><select id="rg_newissue" class="form-input" onchange="var d=document.getElementById(\'rg_newissue_group\');if(this.value===\'是\'){d.style.display=\'flex\'}else{d.style.display=\'none\'}"><option value="否">否</option><option value="是">是（需继续回归）</option></select></div>';
+  body += '<div id="rg_newissue_group" style="display:none"><div class="form-group"><label>新问题报告<span style="color:red">*</span></label><div class="form-ctl">';
+  body += '<label for="rg_issue_upload" class="btn btn-danger btn-sm" style="cursor:pointer;margin-bottom:6px">📎 上传问题报告</label>';
+  body += '<span id="rg_issue_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="rg_issue_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'rg_issue_file\').value=f.name;document.getElementById(\'rg_issue_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="rg_issue_file" class="form-input" placeholder="文件名（自动填充）" value="' + issueFile + '" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div></div>';
+  body += '<div style="font-size:12px;color:#999">📄 记录编号：{任务编号}.CSSM V{版本号}(递增)</div></div>';
+  showModal('🔄 回归测试记录 — ' + t.id, body,
     '<button class="btn btn-primary" onclick="confirmRegression(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
 }
 function confirmRegression(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   var fileVal = document.getElementById('rg_file').value.trim();
-  if (!fileVal) { alert('请输入文件名'); return; }
+  var isFixed = document.getElementById('rg_fixed').value === '是';
+  var hasNewIssue = document.getElementById('rg_newissue').value === '是';
+  if (!fileVal) { alert('请上传回归测试记录'); return; }
+  var newIssueFile = '';
+  if (hasNewIssue) {
+    newIssueFile = document.getElementById('rg_issue_file').value.trim();
+    if (!newIssueFile) { alert('产生新问题时请上传问题报告'); return; }
+  }
   var ds = fmt(new Date());
-  t.stageHistory.push({ stage: '回归测试记录', date: ds, operator: LOGIN_USER, file: fileVal });
-  createWorkOrder(taskId, '回归测试问题报告评审', '回归测试评审', '赵工', '项目：' + t.proj + '\n文件：' + fileVal, []);
+  t.stageHistory.push({ stage: '回归测试记录', date: ds, operator: LOGIN_USER, file: fileVal, isFixed: isFixed, hasNewIssue: hasNewIssue, newIssueFile: newIssueFile || undefined });
+  createWorkOrder(taskId, '回归测试问题报告评审', '回归测试评审', '赵工', '项目：' + t.proj + '\n回归记录：' + fileVal + '\n修复状态：' + (isFixed?'已修复':'未修复') + '\n新问题：' + (hasNewIssue?'有('+newIssueFile+')':'无'), []);
   t.currentStage = '回归测试问题报告评审';
-  alert('回归记录已提交！📋 已派发评审工单\n进入：回归测试问题报告评审');
+  alert('【原型演示】回归测试记录已提交！\n修复状态：' + (isFixed?'✅已修复':'❌未修复') + '\n新问题：' + (hasNewIssue?'⚠ 有':'无') + '\n📋 已派发评审工单\n进入：回归测试问题报告评审');
   closeModal(); renderPage();
 }
+// D2. 回归测试问题报告评审 (2.3.11)
 function openRegressionReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '回归测试问题报告评审') return;
-  var body = '<p>任务：' + t.id + '｜' + t.proj + '</p>' +
-    '<div class="form-group"><label>评审结论</label><select id="rr_result" class="form-input"><option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
-  showModal('回归测试评审', body,
-    '<button class="btn btn-primary" onclick="confirmRegressionReview(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
+  var body = '<div style="max-width:600px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
+  reviewers.forEach(function(r, i) {
+    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="rr_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
+  });
+  body += '</div><hr style="margin:12px 0">';
+  body += '<div class="form-group"><label>评审意见汇总</label>';
+  body += '<textarea id="rr_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
+  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
+  body += '<select id="rr_result" class="form-input" onchange="var d=document.getElementById(\'rr_reject_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'rr_reject_reason\').value=\'\'}">';
+  body += '<option value="通过">✅ 通过</option><option value="不通过">❌ 不通过 — 退回回归测试</option></select></div>';
+  body += '<div class="form-group" id="rr_reject_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
+  body += '<textarea id="rr_reject_reason" class="form-input" rows="3" placeholder="不通过时必填"></textarea></div></div>';
+  showModal('🔍 回归测试评审 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmRegressionReview(\'' + taskId + '\')">提交评审</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
 }
 function confirmRegressionReview(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  completeWorkOrder(taskId, '回归测试问题报告评审', document.getElementById('rr_result').value);
-  t.stageHistory.push({ stage: '回归测试问题报告评审', date: fmt(new Date()), operator: LOGIN_USER, result: document.getElementById('rr_result').value });
-  t.currentStage = '检测报告';
-  alert('评审完成！进入：检测报告（E.报告阶段）');
+  if (!t) return;
+  var cbs = document.querySelectorAll('input[name="rr_reviewers"]:checked');
+  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
+  var result = document.getElementById('rr_result').value;
+  var opinion = document.getElementById('rr_opinion').value;
+  var rejectReason = (document.getElementById('rr_reject_reason').value || '').trim();
+  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
+  completeWorkOrder(taskId, '回归测试问题报告评审', result);
+  var ds = fmt(new Date());
+  var reviewers = [];
+  cbs.forEach(function(cb) { reviewers.push(cb.value); });
+  t.stageHistory.push({ stage: '回归测试问题报告评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
+  // 读取回归记录判断循环
+  var regEntry = t.stageHistory.filter(function(s) { return s.stage === '回归测试记录'; }).slice(-1)[0];
+  var isFixed = regEntry && regEntry.isFixed !== false;
+  var hasNewIssue = regEntry && regEntry.hasNewIssue === true;
+  if (result === '通过' && isFixed && !hasNewIssue) {
+    t.currentStage = '检测报告';
+    alert('【原型演示】回归测试评审全员通过！\n修复=是，新问题=否 → 退出循环\n评审人：' + reviewers.join('、') + '\n进入：检测报告（E.报告阶段）');
+  } else {
+    t.currentStage = '回归测试记录';
+    var reason = result === '不通过' ? '评审不通过：' + rejectReason : (hasNewIssue ? '仍有新问题待处理' : '问题未修复');
+    alert('【原型演示】回归测试需继续循环。\n原因：' + reason + '\n退回：回归测试记录');
+  }
   closeModal(); renderPage();
 }
 function openReportModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '检测报告') return;
-  var defFile = t.id + '.JCBG V1.0';
-  var body = '<div style="max-width:500px;margin:0 auto"><div class="form-group"><label>编制检测报告</label>' +
-    '<input id="rp_file" class="form-input" value="' + defFile + '" placeholder="文件名"></div></div>';
-  showModal('检测报告', body,
+  // 计算版本号
+  var verCount = t.stageHistory.filter(function(h){ return h.stage === '检测报告'; }).length;
+  var verNum = (verCount + 1).toFixed(0);
+  var defFile = t.id + '.JCBG V' + verNum;
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<div class="form-group"><label>检测报告文件<span style="color:red">*</span></label><div class="form-ctl">';
+  body += '<label for="er_upload" class="btn btn-primary btn-sm" style="cursor:pointer;margin-bottom:6px">📎 选择文件上传</label>';
+  body += '<span id="er_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="er_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'er_file\').value=f.name;document.getElementById(\'er_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="er_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div>';
+  body += '<div style="font-size:12px;color:#999;margin-top:8px">📄 报告编号：' + t.id + '.JCBG V' + verNum + '（版本' + verNum + '）</div>';
+  body += '</div>';
+  showModal('📋 检测报告 — ' + t.id, body,
     '<button class="btn btn-primary" onclick="confirmReport(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
 }
 function confirmReport(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  var fileVal = document.getElementById('rp_file').value.trim();
-  if (!fileVal) { alert('请输入文件名'); return; }
-  t.stageHistory.push({ stage: '检测报告', date: fmt(new Date()), operator: LOGIN_USER, file: fileVal });
-  createWorkOrder(taskId, '检测报告评审', '检测报告评审', '赵工', '项目：' + t.proj + '\n报告：' + fileVal, []);
+  var fileVal = document.getElementById('er_file').value.trim();
+  if (!fileVal || fileVal.indexOf('.') < 0) { alert('请上传检测报告文件'); return; }
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '检测报告', date: ds, operator: LOGIN_USER, file: fileVal });
+  createWorkOrder(taskId, '检测报告评审', '检测报告评审', '赵工', '项目：' + t.proj + '\n任务编号：' + t.id + '\n报告文件：' + fileVal, []);
   t.currentStage = '检测报告评审';
-  alert('报告已提交！📋 已派发评审工单至赵工\n进入：检测报告评审');
+  alert('【原型演示】检测报告已提交！\n文件：' + fileVal + '\n📋 已派发评审工单至赵工\n进入：检测报告评审');
   closeModal(); renderPage();
 }
 function openReportReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '检测报告评审') return;
-  var body = '<p>任务：' + t.id + '｜' + t.proj + '</p>' +
-    '<div class="form-group"><label>评审结论</label><select id="br_result" class="form-input"><option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
-  showModal('检测报告评审', body,
-    '<button class="btn btn-primary" onclick="confirmReportReview(\'' + taskId + '\')">提交</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
+  var body = '<div style="max-width:600px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
+  reviewers.forEach(function(r, i) {
+    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="br_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
+  });
+  body += '</div><hr style="margin:12px 0">';
+  body += '<div class="form-group"><label>评审意见汇总</label>';
+  body += '<textarea id="br_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
+  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
+  body += '<select id="br_result" class="form-input" onchange="var d=document.getElementById(\'br_reject_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'br_reject_reason\').value=\'\'}">';
+  body += '<option value="通过">✅ 全员通过 — 推进至用印审批</option><option value="不通过">❌ 不通过 — 退回检测报告</option></select></div>';
+  body += '<div class="form-group" id="br_reject_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
+  body += '<textarea id="br_reject_reason" class="form-input" rows="3" placeholder="不通过时必填，说明具体原因以便修改"></textarea></div></div>';
+  showModal('🔍 检测报告评审 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmReportReview(\'' + taskId + '\')">提交评审</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
 }
 function confirmReportReview(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  completeWorkOrder(taskId, '检测报告评审', document.getElementById('br_result').value);
-  t.stageHistory.push({ stage: '检测报告评审', date: fmt(new Date()), operator: LOGIN_USER, result: document.getElementById('br_result').value });
-  t.currentStage = '用印审批';
-  alert('报告评审完成！进入：用印审批');
+  if (!t) return;
+  var cbs = document.querySelectorAll('input[name="br_reviewers"]:checked');
+  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
+  var result = document.getElementById('br_result').value;
+  var opinion = document.getElementById('br_opinion').value;
+  var rejectReason = (document.getElementById('br_reject_reason').value || '').trim();
+  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
+  completeWorkOrder(taskId, '检测报告评审', result);
+  var ds = fmt(new Date());
+  var reviewers = [];
+  cbs.forEach(function(cb) { reviewers.push(cb.value); });
+  t.stageHistory.push({ stage: '检测报告评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
+  if (result === '通过') {
+    t.currentStage = '用印审批';
+    alert('【原型演示】检测报告评审全员通过！\n评审人：' + reviewers.join('、') + '\n进入：用印审批');
+  } else {
+    t.currentStage = '检测报告';
+    alert('【原型演示】检测报告评审不通过，退回「检测报告」阶段。\n原因：' + rejectReason);
+  }
   closeModal(); renderPage();
 }
 function openSealApprovalModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '用印审批') return;
-  createWorkOrder(taskId, '用印审批', '用印审批', '张工', '项目：' + t.proj + '\n任务编号：' + t.id, []);
-  t.stageHistory.push({ stage: '用印审批', date: fmt(new Date()), operator: LOGIN_USER, result: '通过' });
-  t.currentStage = '出具报告';
-  alert('📋 已派发用印审批工单至张工\n进入：出具报告');
-  renderPage();
+  var approvers = ['张工（实验室负责人）', '赵工（技术负责人）', '李工（质量负责人）', '王工（授权签字人）'];
+  var body = '<div style="max-width:650px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div style="background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#ad6800">⚠️ 四人全部通过方可出具报告，任一人不通过则退回检测报告</div>';
+  for (var ai = 0; ai < approvers.length; ai++) {
+    var idx = ai + 1;
+    body += '<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;padding:12px;margin-bottom:10px">';
+    body += '<div style="font-weight:bold;font-size:14px;margin-bottom:8px;color:#333">👤 审批人' + idx + '：' + approvers[ai] + '</div>';
+    body += '<div class="form-group" style="margin-bottom:6px"><label style="font-size:12px">审批意见</label>';
+    body += '<textarea id="sa_opinion_' + idx + '" class="form-input" rows="2" placeholder="审批人' + idx + ' 的意见"></textarea></div>';
+    body += '<div style="display:flex;gap:12px;align-items:flex-start"><div class="form-group" style="flex:1;margin-bottom:0"><label style="font-size:12px">审批结论</label>';
+    body += '<select id="sa_result_' + idx + '" class="form-input" onchange="var d=document.getElementById(\'sa_reject_' + idx + '\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'sa_reason_' + idx + '\').value=\'\'}">';
+    body += '<option value="通过">✅ 通过</option><option value="不通过">❌ 不通过</option></select></div>';
+    body += '<div class="form-group" id="sa_reject_' + idx + '" style="flex:1;margin-bottom:0;display:none"><label style="font-size:12px">不通过原因<span style="color:red">*</span></label>';
+    body += '<textarea id="sa_reason_' + idx + '" class="form-input" rows="2" placeholder="不通过时必填"></textarea></div></div>';
+    body += '</div>';
+  }
+  body += '</div>';
+  showModal('🖊️ 用印审批 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmSealApproval(\'' + taskId + '\')">提交审批</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmSealApproval(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var approvers = ['张工（实验室负责人）', '赵工（技术负责人）', '李工（质量负责人）', '王工（授权签字人）'];
+  var allPass = true;
+  var failReasons = [];
+  var results = [];
+  for (var ai = 0; ai < approvers.length; ai++) {
+    var idx = ai + 1;
+    var result = document.getElementById('sa_result_' + idx).value;
+    var opinion = document.getElementById('sa_opinion_' + idx).value;
+    results.push({ approver: approvers[ai], result: result, opinion: opinion });
+    if (result === '不通过') {
+      allPass = false;
+      var reason = (document.getElementById('sa_reason_' + idx).value || '').trim();
+      if (!reason) { alert('审批人' + idx + '（' + approvers[ai] + '）不通过时必须填写不通过原因'); return; }
+      failReasons.push(approvers[ai] + '：' + reason);
+    }
+  }
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '用印审批', date: ds, operator: LOGIN_USER, results: results, allPass: allPass, failReasons: failReasons.length ? failReasons.join('；') : undefined });
+  // 创建工单
+  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n报告文件：用印审批';
+  approvers.forEach(function(a) { createWorkOrder(taskId, '用印审批', '用印审批', a.split('（')[0], woContent, []); });
+  if (allPass) {
+    t.currentStage = '出具报告';
+    alert('【原型演示】用印审批四人全部通过！✅\n' + approvers.map(function(a,i){ return '  ' + a + '：通过'; }).join('\n') + '\n📋 已派发审批工单\n进入：出具报告');
+  } else {
+    t.currentStage = '检测报告';
+    alert('【原型演示】用印审批未通过，退回「检测报告」阶段。\n不通过：\n' + failReasons.map(function(r){ return '  ❌ ' + r; }).join('\n') + '\n📋 已派发审批工单');
+  }
+  closeModal(); renderPage();
 }
 function openIssueReportModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '出具报告') return;
-  t.stageHistory.push({ stage: '出具报告', date: fmt(new Date()), operator: LOGIN_USER });
+  var defFile = t.id + '.JCBG（盖章版）.pdf';
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:8px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div class="form-group"><label>最终版报告（盖章后PDF）<span style="color:red">*</span></label><div class="form-ctl">';
+  body += '<label for="ei_upload" class="btn btn-success btn-sm" style="cursor:pointer;margin-bottom:6px">📎 上传盖章版报告</label>';
+  body += '<span id="ei_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="ei_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'ei_file\').value=f.name;document.getElementById(\'ei_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx">';
+  body += '<input id="ei_file" class="form-input" placeholder="文件名（自动填充）" value="' + defFile + '" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div>';
+  body += '<div style="font-size:12px;color:#999;margin-top:8px">📋 签发后将自动同步至报告查询列表（状态=已签发）</div>';
+  body += '</div>';
+  showModal('✅ 出具报告 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmIssueReport(\'' + taskId + '\')">确认出具</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmIssueReport(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  var fileVal = document.getElementById('ei_file').value.trim();
+  if (!fileVal || fileVal.indexOf('.') < 0) { alert('请上传盖章版最终报告'); return; }
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '出具报告', date: ds, operator: LOGIN_USER, file: fileVal });
   t.currentStage = '归档';
-  alert('报告已出具！进入：归档（F.结项阶段）');
-  renderPage();
+  alert('【原型演示】最终版报告已出具！✅\n文件：' + fileVal + '\n报告已同步至报告查询列表（状态=已签发）\n进入：归档（F.结项阶段）');
+  closeModal(); renderPage();
 }
 function openArchiveModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '归档') return;
-  t.stageHistory.push({ stage: '归档', date: fmt(new Date()), operator: LOGIN_USER });
+  // 根据 stageHistory 构建归档文件清单
+  var archiveMap = {
+    '委托申请': { no: 1, name: '委托单', format: '{委托编号}' },
+    '合同评审': { no: 2, name: '合同（如有）', format: '{合同编号}' },
+    '测试方案': { no: 3, name: '测试方案', format: t.id + '.CSFA V{版本号}' },
+    '方案评审': { no: 4, name: '方案评审记录', format: t.id + '.FAPS V{版本号}' },
+    '用户确认方案': { no: 5, name: '用户确认文件', format: t.id + '.FAQR V{版本号}' },
+    '测试配置及环境确认': { no: 6, name: '配置确认表', format: t.id + '.CSPZ V{版本号}' },
+    '测试记录': { no: 7, name: '测试记录', format: t.id + '.CSSM V{版本号}' },
+    '测试记录': { no: 8, name: '问题报告（如有）', format: t.id + '.WTBG V{版本号}', isAlt: true },
+    '测试记录评审': { no: 9, name: '测试记录评审记录', format: t.id + '.SMPS V{版本号}' },
+    '回归测试记录': { no: 10, name: '回归测试记录（如有）', format: t.id + '.CSSM V{版本号}' },
+    '回归测试问题报告评审': { no: 11, name: '问题报告评审记录（如有）', format: t.id + '.WTPS V{版本号}' },
+    '检测报告': { no: 12, name: '检测报告', format: t.id + '.JCBG V{版本号}' },
+    '检测报告评审': { no: 13, name: '报告评审记录', format: t.id + '.BGPS V{版本号}' },
+    '用印审批': { no: 14, name: '用印审批单', format: t.id + '.YYSP V{版本号}' },
+    '出具报告': { no: 15, name: '最终版报告（盖章PDF）', format: t.id + '.JCBG V{版本号}' }
+  };
+  var collected = {};
+  t.stageHistory.forEach(function(h) {
+    if (h.file || h.issueFile) {
+      if (h.file) collected[h.stage] = (collected[h.stage] || []).concat([h.file]);
+      if (h.issueFile) collected[h.stage + '_issue'] = (collected[h.stage + '_issue'] || []).concat([h.issueFile]);
+    }
+  });
+  var body = '<div style="max-width:650px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:8px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<div style="background:#e6fff7;border:1px solid #87e8de;border-radius:4px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#006d75">📦 系统自动收集全流程文件，确认后归档</div>';
+  body += '<table style="width:100%;font-size:13px;border-collapse:collapse">';
+  body += '<thead><tr style="background:#fafafa"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e8e8e8">#</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e8e8e8">文件</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e8e8e8">状态</th></tr></thead><tbody>';
+  var count = 0;
+  Object.keys(archiveMap).forEach(function(k) {
+    var m = archiveMap[k];
+    var files = collected[k] || [];
+    if (m.isAlt) {
+      // 问题报告是测试记录阶段的附加文件
+      files = collected['测试记录_issue'] || [];
+      if (!files.length) return; // 没有则不展示
+    }
+    var hasFile = files.length > 0;
+    var fname = hasFile ? files.join(', ') : m.format;
+    count++;
+    body += '<tr><td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">' + m.no + '</td>';
+    body += '<td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">' + m.name + '<br><span style="font-size:11px;color:#999">' + fname + '</span></td>';
+    body += '<td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">' + (hasFile ? '<span style="color:#52c41a">✓ 已收集</span>' : '<span style="color:#faad14">⚠ 待确认</span>') + '</td></tr>';
+  });
+  body += '</tbody></table>';
+  body += '<div style="font-size:12px;color:#999;margin-top:8px">共 ' + count + ' 类文件，确认无误后归档</div>';
+  body += '</div>';
+  showModal('📦 归档确认 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmArchive(\'' + taskId + '\')">✅ 确认归档</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmArchive(taskId) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '归档', date: ds, operator: LOGIN_USER });
   t.currentStage = '客户满意度调查';
-  t.status = '已完成';
-  alert('归档完成！任务状态更新为已完成\n进入：客户满意度调查');
-  renderPage();
+  alert('【原型演示】归档确认完成！📦\n全流程文件已归档\n进入：客户满意度调查');
+  closeModal(); renderPage();
 }
 function openSurveyModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '客户满意度调查') return;
-  t.stageHistory.push({ stage: '客户满意度调查', date: fmt(new Date()), operator: LOGIN_USER });
-  alert('📋 满意度调查已发送至委托方「' + t.client + '」\n🎉 全部流程完成！');
-  renderPage();
+  var body = '<div style="max-width:500px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:8px">任务：' + t.id + '｜' + t.proj + '</p>';
+  body += '<p style="font-size:13px">委托方：<b>' + t.client + '</b></p>';
+  body += '<div class="form-group"><label>满意度调查表（非必填）</label><div class="form-ctl">';
+  body += '<label for="sv_upload" class="btn btn-primary btn-sm" style="cursor:pointer;margin-bottom:6px">📎 选择文件上传</label>';
+  body += '<span id="sv_fname" style="font-size:12px;color:#999;margin-left:8px"></span>';
+  body += '<input type="file" id="sv_upload" style="display:none" onchange="var f=this.files[0];if(f){document.getElementById(\'sv_file\').value=f.name;document.getElementById(\'sv_fname\').textContent=\'已选: \'+f.name;}" accept=".pdf,.doc,.docx,.xls,.xlsx">';
+  body += '<input id="sv_file" class="form-input" placeholder="文件名（自动填充，可跳过）" readonly style="background:#f5f5f5;color:#888;margin-top:4px"></div></div>';
+  body += '<div style="font-size:12px;color:#999;margin-top:8px">💡 未收到调查表也可直接跳过完成流程</div>';
+  body += '</div>';
+  showModal('📋 客户满意度调查 — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmSurvey(\'' + taskId + '\')">提交</button>' +
+    '<button class="btn btn-default" onclick="confirmSurvey(\'' + taskId + '\', true)">跳过</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+function confirmSurvey(taskId, skip) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var fileVal = '';
+  if (!skip) {
+    fileVal = document.getElementById('sv_file').value.trim();
+  }
+  var ds = fmt(new Date());
+  t.stageHistory.push({ stage: '客户满意度调查', date: ds, operator: LOGIN_USER, file: fileVal || undefined, skipped: !!skip });
+  t.status = '已完成';
+  if (skip) {
+    alert('【原型演示】客户满意度调查已跳过 🎉\n全部流程完成！任务状态更新为「已完成」');
+  } else if (fileVal && fileVal.indexOf('.') > 0) {
+    alert('【原型演示】客户满意度调查已提交！\n文件：' + fileVal + '\n🎉 全部流程完成！任务状态更新为「已完成」');
+  } else {
+    alert('【原型演示】客户满意度调查已提交（无附件）\n🎉 全部流程完成！任务状态更新为「已完成」');
+  }
+  closeModal(); renderPage();
 }
 
 // ============================================================
