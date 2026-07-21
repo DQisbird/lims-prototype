@@ -464,6 +464,110 @@ var STAGE_PHASE = {
 };
 
 
+// 各阶段评审项模板
+var REVIEW_ITEMS = {
+  '方案评审': [
+    { id: 1, item: '测试方案是否覆盖合同/委托书全部检测内容？' },
+    { id: 2, item: '方案中引用的测试标准/方法是否正确？' },
+    { id: 3, item: '测试环境与资源配置是否满足要求？' },
+    { id: 4, item: '测试进度计划安排是否合理？' },
+    { id: 5, item: '测试用例设计是否充分覆盖测试项？' }
+  ],
+  '测试记录评审': [
+    { id: 1, item: '测试用例执行是否完整无遗漏？' },
+    { id: 2, item: '测试记录/数据填写是否规范准确？' },
+    { id: 3, item: '测试结果判定是否正确？' },
+    { id: 4, item: '缺陷描述是否清晰可复现？' },
+    { id: 5, item: '测试记录文件是否齐全？' }
+  ],
+  '回归测试问题报告评审': [
+    { id: 1, item: '问题修复验证是否充分？' },
+    { id: 2, item: '回归测试范围是否合理？' },
+    { id: 3, item: '是否存在新增/遗留缺陷？' },
+    { id: 4, item: '回归测试记录是否完整？' },
+    { id: 5, item: '是否可以关闭问题并退出回归循环？' }
+  ],
+  '检测报告评审': [
+    { id: 1, item: '报告格式是否符合规范要求？' },
+    { id: 2, item: '检测数据/结果是否准确？' },
+    { id: 3, item: '检测结论是否明确、无歧义？' },
+    { id: 4, item: '引用标准/方法是否正确？' },
+    { id: 5, item: '报告附件是否齐全？' }
+  ]
+};
+
+// 获取评审阶段的前置阶段（用于退回）
+function prevStageForReview(stage) {
+  var map = {
+    '方案评审': '测试方案',
+    '测试记录评审': '测试记录',
+    '回归测试问题报告评审': '回归测试记录',
+    '检测报告评审': '检测报告'
+  };
+  return map[stage] || stage;
+}
+
+// 获取评审阶段的下一阶段（通过后推进）
+function nextStageForReview(stage) {
+  var map = {
+    '方案评审': '用户确认方案',
+    '测试记录评审': '检测报告',
+    '回归测试问题报告评审': '检测报告',
+    '检测报告评审': '用印审批'
+  };
+  return map[stage] || stage;
+}
+
+// 检查某任务某阶段评审是否全部完成，并自动推进或退回
+function checkReviewComplete(taskId, stage) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var wos = WORK_ORDERS.filter(function(w) { return w.taskId === taskId && w.stage === stage && w.type === 'review'; });
+  if (wos.length === 0) return;
+  var allDone = wos.every(function(w) { return w.status === 'done'; });
+  if (!allDone) return; // 还有评审人员未提交
+
+  var allPass = wos.every(function(w) { return w.overallResult === '通过'; });
+  var ds = fmt(new Date());
+  var reviewerResults = wos.map(function(w) {
+    return { reviewer: w.assignee, result: w.overallResult, results: w.reviewResults, date: w.resultDate };
+  });
+
+  if (allPass) {
+    // 全员通过 → 推进
+    t.stageHistory.push({ stage: stage, date: ds, operator: '系统', action: '评审完成', result: '通过', reviewerResults: reviewerResults });
+    var prevStageEntry = t.stageHistory.filter(function(h) { return h.stage === stage && h.action === '发起评审'; }).slice(-1)[0];
+    t.reviewers = []; // 清空当前评审人
+    var next = nextStageForReview(stage);
+    // 回归测试评审特殊逻辑：检查是否需要继续循环
+    if (stage === '回归测试问题报告评审') {
+      var regEntry = t.stageHistory.filter(function(s) { return s.stage === '回归测试记录'; }).slice(-1)[0];
+      var isFixed = regEntry && regEntry.isFixed !== false;
+      var hasNewIssue = regEntry && regEntry.hasNewIssue === true;
+      if (isFixed && !hasNewIssue) {
+        t.currentStage = '检测报告';
+        alert('✅ 回归测试评审全员通过！\n修复=是，新问题=否 → 退出循环\n进入：检测报告（E.报告阶段）');
+      } else {
+        t.currentStage = '回归测试记录';
+        alert('⚠️ 回归测试需继续循环。\n原因：' + (hasNewIssue ? '仍有新问题待处理' : '问题未修复') + '\n退回：回归测试记录');
+      }
+    } else {
+      t.currentStage = next;
+      alert('✅ ' + stage + '全员通过！\n进入下一阶段：' + next);
+    }
+  } else {
+    // 任一不通过 → 退回
+    var failList = wos.filter(function(w) { return w.overallResult === '不通过'; }).map(function(w) { return w.assignee; });
+    t.stageHistory.push({ stage: stage, date: ds, operator: '系统', action: '评审完成', result: '不通过', reviewerResults: reviewerResults, failReviewers: failList });
+    t.reviewers = [];
+    var prev = prevStageForReview(stage);
+    t.currentStage = prev;
+    alert('❌ ' + stage + '未通过！\n不通过评审人：' + failList.join('、') + '\n退回：' + prev + '，请修改后重新发起评审');
+  }
+  closeModal();
+  renderPage();
+}
+
 var SAMPLES = [
   // 🎮 演示任务样品
   { id: 'SMP-DEMO-1', taskId: 'TZJC/JSJL-RJ2026-07-20-DEMO', proj: '【演示】全流程测试项目', client: '演示客户（鲨鱼科技）', sampleNo: 'YP-DEMO-001', name: '全流程测试系统V1.0安装包', sampleType: '软件', spec: 'V1.0.0', qty: 1, unit: '套', source: '送样', returnMethod: '客户取回', location: '样品室A-001', checkItems: '{"intact":{"value":"是","remark":"外包装完好"},"virusFree":{"value":"是","remark":"已扫描"},"md5":{"value":"d41d8cd98f00b204e9800998ecf8427e","remark":""}}', status: '待接收', receiveDate: '', remark: '演示用' },
@@ -583,16 +687,20 @@ function canViewTaskOnly(taskId) {
 
 // ── 工单系统 ──
 var WORK_ORDERS = [];
-function createWorkOrder(taskId, stage, title, assignee, content, attachments) {
+function createWorkOrder(taskId, stage, title, assignee, content, attachments, type, reviewItems) {
   var wo = {
-    id: 'WO-' + new Date().getTime(),
+    id: 'WO-' + new Date().getTime() + '-' + Math.random().toString(36).substr(2, 6),
     taskId: taskId,
     stage: stage,
     title: title,
+    type: type || 'general',
     assignee: assignee,
     status: 'pending',
     content: content || '',
     attachments: attachments || [],
+    reviewItems: reviewItems || null,
+    reviewResults: null,
+    overallResult: null,
     createDate: fmt(new Date()),
     createBy: LOGIN_USER,
     result: null,
@@ -611,6 +719,122 @@ function completeWorkOrder(taskId, stage, result) {
     w.resultDate = fmt(new Date());
   });
 }
+
+// ── 评审工单：评审人员填写评审项 ──
+function openReviewWorksheet(woId, readonly) {
+  var wo = WORK_ORDERS.filter(function(w) { return w.id === woId; })[0];
+  if (!wo) return;
+  var t = TASKS.filter(function(x) { return x.id === wo.taskId; })[0];
+  if (!t) return;
+  var items = wo.reviewItems || [];
+  var results = wo.reviewResults || {};
+  var isReadonly = readonly || wo.status === 'done';
+  var body = '<div style="max-width:650px;margin:0 auto">';
+  // 任务基本信息
+  body += '<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:6px;padding:12px;margin-bottom:16px">';
+  body += '<table class="ws-info-table"><tbody>';
+  body += '<tr><td>任务编号</td><td><b>' + t.id + '</b></td></tr>';
+  body += '<tr><td>项目名称</td><td>' + t.proj + '</td></tr>';
+  body += '<tr><td>委托方</td><td>' + t.client + '</td></tr>';
+  body += '<tr><td>评审阶段</td><td><span class="tag tag-orange">' + wo.stage + '</span></td></tr>';
+  body += '<tr><td>评审人</td><td><b>' + wo.assignee + '</b></td></tr>';
+  // 列出上一阶段的附件文件
+  var prevFiles = getStageFiles(t, wo.stage);
+  if (prevFiles.length > 0) {
+    body += '<tr><td>评审附件</td><td>';
+    prevFiles.forEach(function(f, fi) {
+      body += '<span style="display:inline-block;background:#e6f7ff;border:1px solid #91d5ff;border-radius:3px;padding:2px 8px;margin:2px;font-size:12px">📄 ' + f + '</span>';
+    });
+    body += '</td></tr>';
+  }
+  if (isReadonly && wo.overallResult) {
+    body += '<tr><td>评审结论</td><td>' + statusTag(wo.overallResult) + '</td></tr>';
+  }
+  body += '</tbody></table></div>';
+  // 评审项
+  body += '<div style="font-weight:bold;margin-bottom:12px;font-size:14px">📋 评审项清单</div>';
+  items.forEach(function(it, idx) {
+    var iid = 'ri_' + woId + '_' + it.id;
+    var curR = results[it.id] || {};
+    body += '<div style="border:1px solid #e8e8e8;border-radius:6px;padding:10px 12px;margin-bottom:8px;background:#fff">';
+    body += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">';
+    body += '<span style="font-weight:bold;color:#1890ff;flex-shrink:0">' + (idx+1) + '.</span>';
+    body += '<span style="flex:1;font-size:13px">' + it.item + '</span>';
+    if (isReadonly) {
+      body += '<span style="flex-shrink:0;font-size:12px;min-width:70px">' + (curR.result === '是' ? '✅ 是' : curR.result === '否' ? '❌ 否' : '<span style="color:#999">-</span>') + '</span>';
+    } else {
+      body += '<select id="' + iid + '_result" style="flex-shrink:0;padding:3px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;min-width:70px" onchange="var c=document.getElementById(\'' + iid + '_comment\');if(this.value===\'否\'){c.placeholder=\'请说明不通过原因\';c.style.borderColor=\'#ff4d4f\'}else{c.placeholder=\'备注（可选）\';c.style.borderColor=\'#d9d9d9\'}">';
+      body += '<option value="">请选择</option><option value="是"' + (curR.result==='是'?' selected':'') + '>✅ 是</option><option value="否"' + (curR.result==='否'?' selected':'') + '>❌ 否</option></select>';
+    }
+    body += '</div>';
+    if (isReadonly) {
+      body += '<div style="font-size:12px;color:#666;padding:2px 0">' + (curR.comment || '<span style="color:#ccc">无备注</span>') + '</div>';
+    } else {
+      body += '<input id="' + iid + '_comment" class="form-input" style="width:100%;padding:4px 8px;font-size:12px" placeholder="备注（可选）" value="' + (curR.comment||'') + '">';
+    }
+    body += '</div>';
+  });
+  if (isReadonly) {
+    body += '<div class="form-group" style="margin-top:12px"><label>评审意见汇总</label>';
+    body += '<div style="font-size:13px;padding:8px;background:#fafafa;border-radius:4px">' + (wo.opinion || '<span style="color:#ccc">无</span>') + '</div></div>';
+  } else {
+    body += '<div class="form-group" style="margin-top:12px"><label>评审意见汇总</label>';
+    body += '<textarea id="ri_' + woId + '_opinion" class="form-input" rows="2" placeholder="整体评审意见（可选）">' + (wo.opinion||'') + '</textarea></div>';
+  }
+  body += '</div>';
+  showModal('📝 评审工单 — ' + wo.stage + '（' + wo.assignee + '）' + (isReadonly?' <span style="color:#52c41a;font-size:12px">[已完成]</span>':''), body,
+    isReadonly
+    ? '<button class="btn btn-default" onclick="closeModal()">关闭</button>'
+    : '<button class="btn btn-primary" onclick="submitReviewWorksheet(\'' + woId + '\')">✅ 提交评审</button>' +
+      '<button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+
+function submitReviewWorksheet(woId) {
+  var wo = WORK_ORDERS.filter(function(w) { return w.id === woId; })[0];
+  if (!wo || wo.status !== 'pending') return;
+  var items = wo.reviewItems || [];
+  var results = [];
+  var allFilled = true;
+  items.forEach(function(it) {
+    var iid = 'ri_' + woId + '_' + it.id;
+    var resultEl = document.getElementById(iid + '_result');
+    var commentEl = document.getElementById(iid + '_comment');
+    var r = resultEl ? resultEl.value : '';
+    if (!r) { allFilled = false; resultEl && (resultEl.style.borderColor = '#ff4d4f'); }
+    results.push({ itemId: it.id, item: it.item, result: r, comment: (commentEl ? commentEl.value : '') || '' });
+  });
+  if (!allFilled) { alert('请完成所有评审项的判定（是/否）'); return; }
+  var opinion = (document.getElementById('ri_' + woId + '_opinion').value || '').trim();
+  var hasNo = results.some(function(r) { return r.result === '否'; });
+  wo.reviewResults = results;
+  wo.overallResult = hasNo ? '不通过' : '通过';
+  wo.opinion = opinion;
+  wo.status = 'done';
+  wo.resultDate = fmt(new Date());
+  wo.result = wo.overallResult;
+  var t = TASKS.filter(function(x) { return x.id === wo.taskId; })[0];
+  alert('✅ 评审已提交！\n评审人：' + wo.assignee + '\n结论：' + wo.overallResult + '\n' + (hasNo ? '有 ' + results.filter(function(r){return r.result==='否';}).length + ' 项不通过' : '全部通过'));
+  closeModal();
+  // 检查是否所有评审人都已完成
+  checkReviewComplete(wo.taskId, wo.stage);
+}
+
+// 获取某阶段关联的文件（用于评审工单附件展示）
+function getStageFiles(t, reviewStage) {
+  var files = [];
+  var prevMap = {
+    '方案评审': ['测试方案'],
+    '测试记录评审': ['测试记录'],
+    '回归测试问题报告评审': ['回归测试记录'],
+    '检测报告评审': ['检测报告']
+  };
+  var prevStages = prevMap[reviewStage] || [];
+  t.stageHistory.forEach(function(h) {
+    if (prevStages.indexOf(h.stage) >= 0 && h.file) files.push(h.file);
+  });
+  return files;
+}
+
 var reviewPage = 1, reviewPageSize = 5, reviewFilteredData = [];
 
 // 计算待办数量
@@ -631,7 +855,7 @@ function pendingCount() {
       });
     }
   });
-  // 样品管理员确认工单
+  // 样品管理员确认工单 + 评审工单
   WORK_ORDERS.forEach(function(w) {
     if (w.status === 'pending' && w.assignee === LOGIN_USER) count++;
   });
@@ -855,12 +1079,16 @@ function pageTodo() {
       });
     }
   });
-  // 样品管理员确认工单
+  // 样品管理员确认工单 + 评审工单
   WORK_ORDERS.forEach(function(w) {
     if (w.status === 'pending' && w.assignee === LOGIN_USER) {
       var t = TASKS.filter(function(x) { return x.id === w.taskId; })[0];
       if (t) {
-        todos.push({ type: '样品管理员确认', refId: w.taskId, project: t.proj, client: t.client, date: w.createDate, target: 'sampleAdmin', action: 'sampleAdmin', woId: w.id });
+        if (w.type === 'review') {
+          todos.push({ type: w.stage + '工单', refId: w.id, project: t.proj, client: t.client, date: w.createDate, target: 'reviewWO', action: 'reviewWO', woId: w.id });
+        } else {
+          todos.push({ type: '样品管理员确认', refId: w.taskId, project: t.proj, client: t.client, date: w.createDate, target: 'sampleAdmin', action: 'sampleAdmin', woId: w.id });
+        }
       }
     }
   });
@@ -875,6 +1103,8 @@ function pageTodo() {
       btnHtml = '<button class="btn btn-primary btn-sm" onclick="viewApprovalWorksheet(\'' + t.refId + '\')">处理</button>';
     } else if (t.action === 'sampleAdmin') {
       btnHtml = '<button class="btn btn-primary btn-sm" onclick="stageReceiveSample(\'' + t.refId + '\')">处理</button>';
+    } else if (t.action === 'reviewWO') {
+      btnHtml = '<button class="btn btn-primary btn-sm" onclick="openReviewWorksheet(\'' + t.woId + '\')">处理</button>';
     } else {
       btnHtml = '<button class="btn btn-primary btn-sm" onclick="viewReviewWorksheet(\'' + t.refId + '\')">处理</button>';
     }
@@ -885,7 +1115,7 @@ function pageTodo() {
   return '<div class="card"><div class="card-title">待办工单</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option><option value="样品管理员确认">样品管理员确认</option></select>' +
+        '<select id="todo_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option><option value="样品管理员确认">样品管理员确认</option><option value="评审">各类评审工单</option></select>' +
         '<input placeholder="项目名称" id="todo_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="客户名称" id="todo_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="编号" id="todo_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
@@ -931,6 +1161,15 @@ function pageDone() {
       }
     }
   });
+  // 评审工单已办（review类型工单）
+  WORK_ORDERS.forEach(function(w) {
+    if (w.status === 'done' && w.type === 'review' && w.assignee === LOGIN_USER) {
+      var t = TASKS.filter(function(x) { return x.id === w.taskId; })[0];
+      if (t) {
+        doneList.push({ id: w.id, taskId: w.taskId, project: t.proj, client: t.client, date: w.createDate, conclusion: w.overallResult || w.result, processTime: w.resultDate || w.createDate, type: '评审工单', stage: w.stage });
+      }
+    }
+  });
 
   doneList.sort(function(a, b) { return (b.processTime || b.date).localeCompare(a.processTime || a.date); });
 
@@ -944,6 +1183,8 @@ function pageDone() {
       '<td>' + (d.processTime || '-') + '</td>' +
       '<td>' + (d.type === '委托审批'
         ? '<button class="btn btn-default btn-sm" onclick="viewApprovalWorksheet(\'' + d.id + '\')">查看</button>'
+        : d.type === '评审工单'
+        ? '<button class="btn btn-default btn-sm" onclick="openReviewWorksheet(\'' + d.id + '\',true)">查看</button>'
         : '<button class="btn btn-default btn-sm" onclick="viewReviewWorksheet(\'' + d.id + '\')">查看</button>')
       + '</td></tr>';
   }).join('');
@@ -951,7 +1192,7 @@ function pageDone() {
   return '<div class="card"><div class="card-title">已办工单</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<select id="done_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option><option value="样品管理员确认">样品管理员确认</option></select>' +
+        '<select id="done_filter_type" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px"><option value="">全部类型</option><option value="合同评审">合同评审</option><option value="委托审批">委托审批</option><option value="样品管理员确认">样品管理员确认</option><option value="评审工单">评审工单</option></select>' +
         '<input placeholder="项目名称" id="done_filter_proj" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="客户名称" id="done_filter_client" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:140px">' +
         '<input placeholder="编号" id="done_filter_id" style="padding:6px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;width:160px">' +
@@ -976,7 +1217,9 @@ function filterTodos() {
   rows.forEach(function(row) {
     var tds = row.querySelectorAll('td');
     var show = true;
-    if (type && tds[0].textContent !== type) show = false;
+    if (type === '评审') {
+      if (tds[0].textContent.indexOf('评审工单') < 0) show = false;
+    } else if (type && tds[0].textContent !== type) show = false;
     if (proj && tds[1].textContent.toLowerCase().indexOf(proj) < 0) show = false;
     if (client && tds[2].textContent.toLowerCase().indexOf(client) < 0) show = false;
     if (id && tds[4].textContent.toLowerCase().indexOf(id) < 0) show = false;
@@ -3485,63 +3728,75 @@ function confirmTestPlan(taskId) {
   renderPage();
 }
 
+// ── 通用评审发起（所有评审阶段复用） ──
+function openReviewInitModal(taskId, stage) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t || t.currentStage !== stage) return;
+  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
+  var items = REVIEW_ITEMS[stage] || [];
+  var body = '<div style="max-width:650px;margin:0 auto">';
+  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
+  // 选择评审人员
+  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人，每人独立评审）</span></label>';
+  var checkboxName = 'ri_reviewers_' + stage.replace(/[^a-zA-Z]/g,'');
+  reviewers.forEach(function(r, i) {
+    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="' + checkboxName + '" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
+  });
+  body += '</div>';
+  // 评审项预览
+  body += '<hr style="margin:12px 0">';
+  body += '<div style="font-size:12px;color:#666;margin-bottom:8px">📋 评审项预览（共 ' + items.length + ' 项，每位评审人员将独立填写）：</div>';
+  items.forEach(function(it, idx) {
+    body += '<div style="font-size:12px;color:#333;padding:3px 0">' + (idx+1) + '. ' + it.item + '</div>';
+  });
+  // 附件提示
+  var prevFiles = getStageFiles(t, stage);
+  if (prevFiles.length > 0) {
+    body += '<div style="margin-top:8px;font-size:12px;color:#1890ff">📎 评审附件：' + prevFiles.join('、') + '</div>';
+  }
+  body += '<div style="margin-top:12px;background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:8px 12px;font-size:12px;color:#ad6800">⚠️ 发起后每位评审人员将收到独立评审工单，全部通过后自动推进，任一不通过则整体退回</div>';
+  body += '<input type="hidden" id="' + checkboxName + '_stage" value="' + stage + '">';
+  body += '</div>';
+  showModal('🔍 ' + stage + ' — ' + t.id, body,
+    '<button class="btn btn-primary" onclick="confirmReviewInit(\'' + taskId + '\',\'' + stage + '\')">📨 发起评审</button>' +
+    '<button class="btn btn-default" onclick="closeModal()">取消</button>');
+}
+
+function confirmReviewInit(taskId, stage) {
+  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
+  if (!t) return;
+  var checkboxName = 'ri_reviewers_' + stage.replace(/[^a-zA-Z]/g,'');
+  var cbs = document.querySelectorAll('input[name="' + checkboxName + '"]:checked');
+  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
+  var ds = fmt(new Date());
+  var reviewers = [];
+  cbs.forEach(function(cb) { reviewers.push(cb.value); });
+  var items = REVIEW_ITEMS[stage] || [];
+  
+  // 为每位评审人员创建独立评审工单
+  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n委托方：' + t.client + '\n评审阶段：' + stage;
+  reviewers.forEach(function(r) {
+    createWorkOrder(taskId, stage, stage + '评审', r, woContent, getStageFiles(t, stage), 'review', items);
+  });
+  
+  // 记录发起评审到阶段历史
+  t.stageHistory.push({ stage: stage, date: ds, operator: LOGIN_USER, action: '发起评审', reviewers: reviewers.join(','), itemCount: items.length });
+  t.reviewers = reviewers;
+  
+  alert('✅ 评审已发起！\n评审阶段：' + stage + '\n评审人员：' + reviewers.join('、') + '\n📋 已派发 ' + reviewers.length + ' 张独立评审工单\n\n💡 请各评审人员切换到对应角色，在「待办工单」中处理');
+  closeModal();
+  renderPage();
+}
+
 // B2. 方案评审 (2.3.4)
 function openSchemeReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '方案评审') return;
-  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
-  var body = '<div style="max-width:600px;margin:0 auto">';
-  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
-  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
-  reviewers.forEach(function(r, i) {
-    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="sr_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
-  });
-  body += '</div>';
-  body += '<hr style="margin:12px 0">';
-  body += '<div class="form-group"><label>评审意见汇总</label>';
-  body += '<textarea id="sr_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
-  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
-  body += '<select id="sr_result" class="form-input" onchange="var d=document.getElementById(\'sr_reject_reason_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'sr_reject_reason\').value=\'\'}">';
-  body += '<option value="通过">✅ 全员通过 — 推进至下一阶段</option><option value="不通过">❌ 不通过 — 退回测试方案</option></select></div>';
-  body += '<div class="form-group" id="sr_reject_reason_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
-  body += '<textarea id="sr_reject_reason" class="form-input" rows="3" placeholder="不通过时必填，说明具体原因以便修改"></textarea></div>';
-  body += '</div>';
-  showModal('🔍 方案评审 — ' + t.id, body,
-    '<button class="btn btn-primary" onclick="confirmSchemeReview(\'' + taskId + '\')">提交评审</button>' +
-    '<button class="btn btn-default" onclick="closeModal()">取消</button>'
-  );
+  openReviewInitModal(taskId, '方案评审');
 }
 
 function confirmSchemeReview(taskId) {
-  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  if (!t) return;
-  var cbs = document.querySelectorAll('input[name="sr_reviewers"]:checked');
-  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
-  var result = document.getElementById('sr_result').value;
-  var opinion = document.getElementById('sr_opinion').value;
-  var rejectReason = (document.getElementById('sr_reject_reason').value || '').trim();
-  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
-  var now = new Date();
-  var ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-  var reviewers = [];
-  cbs.forEach(function(cb) { reviewers.push(cb.value); });
-  
-  // 创建工单（派发给每位评审人员）
-  var woContent = '项目：' + t.proj + '\n任务编号：' + t.id + '\n委托方：' + t.client + '\n评审阶段：方案评审\n评审意见：' + (opinion || '（待填写）') + '\n评审结论：' + (result === '通过' ? '✅ 全员通过' : '❌ 不通过') + (rejectReason ? '\n不通过原因：' + rejectReason : '');
-  reviewers.forEach(function(r) {
-    createWorkOrder(taskId, '方案评审', '方案评审', r, woContent, []);
-  });
-  
-  t.stageHistory.push({ stage: '方案评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
-  if (result === '通过') {
-    t.currentStage = '用户确认方案';
-    alert('【原型演示】方案评审全员通过！\n评审人：' + reviewers.join('、') + '\n📋 已派发 ' + reviewers.length + ' 张评审工单\n进入下一阶段：用户确认方案');
-  } else {
-    t.currentStage = '测试方案';
-    alert('【原型演示】方案评审不通过，退回「测试方案」阶段，请修改后重新提交。\n原因：' + rejectReason + '\n📋 已派发 ' + reviewers.length + ' 张评审工单');
-  }
-  closeModal();
-  renderPage();
+  confirmReviewInit(taskId, '方案评审');
 }
 
 // B3. 用户确认方案 (2.3.5)
@@ -3654,9 +3909,8 @@ function confirmTestRecord(taskId) {
     t.currentStage = '回归测试记录';
     alert('【原型演示】测试记录已提交！\n⚠ 检测到问题，问题报告：' + issueFileVal + '\n进入D阶段：回归测试记录');
   } else {
-    createWorkOrder(taskId, '测试记录评审', '测试记录评审', '赵工', '项目：' + t.proj + '\n任务编号：' + t.id + '\n文件：' + fileVal, []);
     t.currentStage = '测试记录评审';
-    alert('【原型演示】测试记录已提交！\n文件：' + fileVal + '\n📋 已派发评审工单至赵工\n进入：测试记录评审');
+    alert('【原型演示】测试记录已提交！\n文件：' + fileVal + '\n进入：测试记录评审\n💡 请点击「发起评审」选择评审人员');
   }
   closeModal(); renderPage();
 }
@@ -3664,46 +3918,11 @@ function confirmTestRecord(taskId) {
 function openTestRecordReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '测试记录评审') return;
-  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
-  var body = '<div style="max-width:600px;margin:0 auto">';
-  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
-  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
-  reviewers.forEach(function(r, i) {
-    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="cr_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
-  });
-  body += '</div><hr style="margin:12px 0">';
-  body += '<div class="form-group"><label>评审意见汇总</label>';
-  body += '<textarea id="cr_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
-  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
-  body += '<select id="cr_result" class="form-input" onchange="var d=document.getElementById(\'cr_reject_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'cr_reject_reason\').value=\'\'}">';
-  body += '<option value="通过">✅ 通过</option><option value="不通过">❌ 不通过 — 退回测试记录</option></select></div>';
-  body += '<div class="form-group" id="cr_reject_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
-  body += '<textarea id="cr_reject_reason" class="form-input" rows="3" placeholder="不通过时必填"></textarea></div></div>';
-  showModal('🔍 测试记录评审 — ' + t.id, body,
-    '<button class="btn btn-primary" onclick="confirmTestRecordReview(\'' + taskId + '\')">提交评审</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+  openReviewInitModal(taskId, '测试记录评审');
 }
+
 function confirmTestRecordReview(taskId) {
-  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  if (!t) return;
-  var cbs = document.querySelectorAll('input[name="cr_reviewers"]:checked');
-  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
-  var result = document.getElementById('cr_result').value;
-  var opinion = document.getElementById('cr_opinion').value;
-  var rejectReason = (document.getElementById('cr_reject_reason').value || '').trim();
-  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
-  completeWorkOrder(taskId, '测试记录评审', result);
-  var ds = fmt(new Date());
-  var reviewers = [];
-  cbs.forEach(function(cb) { reviewers.push(cb.value); });
-  t.stageHistory.push({ stage: '测试记录评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
-  if (result === '通过') {
-    t.currentStage = '检测报告';
-    alert('【原型演示】测试记录评审全员通过！\n评审人：' + reviewers.join('、') + '\n进入：检测报告（E.报告阶段）');
-  } else {
-    t.currentStage = '测试记录';
-    alert('【原型演示】测试记录评审不通过，退回「测试记录」阶段。\n原因：' + rejectReason);
-  }
-  closeModal(); renderPage();
+  confirmReviewInit(taskId, '测试记录评审');
 }
 // D1. 回归测试记录 (2.3.10)
 function openRegressionModal(taskId) {
@@ -3741,60 +3960,19 @@ function confirmRegression(taskId) {
   }
   var ds = fmt(new Date());
   t.stageHistory.push({ stage: '回归测试记录', date: ds, operator: LOGIN_USER, file: fileVal, isFixed: isFixed, hasNewIssue: hasNewIssue, newIssueFile: newIssueFile || undefined });
-  createWorkOrder(taskId, '回归测试问题报告评审', '回归测试评审', '赵工', '项目：' + t.proj + '\n回归记录：' + fileVal + '\n修复状态：' + (isFixed?'已修复':'未修复') + '\n新问题：' + (hasNewIssue?'有('+newIssueFile+')':'无'), []);
   t.currentStage = '回归测试问题报告评审';
-  alert('【原型演示】回归测试记录已提交！\n修复状态：' + (isFixed?'✅已修复':'❌未修复') + '\n新问题：' + (hasNewIssue?'⚠ 有':'无') + '\n📋 已派发评审工单\n进入：回归测试问题报告评审');
+  alert('【原型演示】回归测试记录已提交！\n修复状态：' + (isFixed?'✅已修复':'❌未修复') + '\n新问题：' + (hasNewIssue?'⚠ 有':'无') + '\n进入：回归测试问题报告评审\n💡 请点击「发起评审」选择评审人员');
   closeModal(); renderPage();
 }
 // D2. 回归测试问题报告评审 (2.3.11)
 function openRegressionReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '回归测试问题报告评审') return;
-  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
-  var body = '<div style="max-width:600px;margin:0 auto">';
-  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
-  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
-  reviewers.forEach(function(r, i) {
-    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="rr_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
-  });
-  body += '</div><hr style="margin:12px 0">';
-  body += '<div class="form-group"><label>评审意见汇总</label>';
-  body += '<textarea id="rr_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
-  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
-  body += '<select id="rr_result" class="form-input" onchange="var d=document.getElementById(\'rr_reject_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'rr_reject_reason\').value=\'\'}">';
-  body += '<option value="通过">✅ 通过</option><option value="不通过">❌ 不通过 — 退回回归测试</option></select></div>';
-  body += '<div class="form-group" id="rr_reject_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
-  body += '<textarea id="rr_reject_reason" class="form-input" rows="3" placeholder="不通过时必填"></textarea></div></div>';
-  showModal('🔍 回归测试评审 — ' + t.id, body,
-    '<button class="btn btn-primary" onclick="confirmRegressionReview(\'' + taskId + '\')">提交评审</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+  openReviewInitModal(taskId, '回归测试问题报告评审');
 }
+
 function confirmRegressionReview(taskId) {
-  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  if (!t) return;
-  var cbs = document.querySelectorAll('input[name="rr_reviewers"]:checked');
-  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
-  var result = document.getElementById('rr_result').value;
-  var opinion = document.getElementById('rr_opinion').value;
-  var rejectReason = (document.getElementById('rr_reject_reason').value || '').trim();
-  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
-  completeWorkOrder(taskId, '回归测试问题报告评审', result);
-  var ds = fmt(new Date());
-  var reviewers = [];
-  cbs.forEach(function(cb) { reviewers.push(cb.value); });
-  t.stageHistory.push({ stage: '回归测试问题报告评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
-  // 读取回归记录判断循环
-  var regEntry = t.stageHistory.filter(function(s) { return s.stage === '回归测试记录'; }).slice(-1)[0];
-  var isFixed = regEntry && regEntry.isFixed !== false;
-  var hasNewIssue = regEntry && regEntry.hasNewIssue === true;
-  if (result === '通过' && isFixed && !hasNewIssue) {
-    t.currentStage = '检测报告';
-    alert('【原型演示】回归测试评审全员通过！\n修复=是，新问题=否 → 退出循环\n评审人：' + reviewers.join('、') + '\n进入：检测报告（E.报告阶段）');
-  } else {
-    t.currentStage = '回归测试记录';
-    var reason = result === '不通过' ? '评审不通过：' + rejectReason : (hasNewIssue ? '仍有新问题待处理' : '问题未修复');
-    alert('【原型演示】回归测试需继续循环。\n原因：' + reason + '\n退回：回归测试记录');
-  }
-  closeModal(); renderPage();
+  confirmReviewInit(taskId, '回归测试问题报告评审');
 }
 function openReportModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
@@ -3820,54 +3998,18 @@ function confirmReport(taskId) {
   if (!fileVal || fileVal.indexOf('.') < 0) { alert('请上传检测报告文件'); return; }
   var ds = fmt(new Date());
   t.stageHistory.push({ stage: '检测报告', date: ds, operator: LOGIN_USER, file: fileVal });
-  createWorkOrder(taskId, '检测报告评审', '检测报告评审', '赵工', '项目：' + t.proj + '\n任务编号：' + t.id + '\n报告文件：' + fileVal, []);
   t.currentStage = '检测报告评审';
-  alert('【原型演示】检测报告已提交！\n文件：' + fileVal + '\n📋 已派发评审工单至赵工\n进入：检测报告评审');
+  alert('【原型演示】检测报告已提交！\n文件：' + fileVal + '\n进入：检测报告评审\n💡 请点击「发起评审」选择评审人员');
   closeModal(); renderPage();
 }
 function openReportReviewModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== '检测报告评审') return;
-  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
-  var body = '<div style="max-width:600px;margin:0 auto">';
-  body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
-  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人）</span></label>';
-  reviewers.forEach(function(r, i) {
-    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="br_reviewers" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
-  });
-  body += '</div><hr style="margin:12px 0">';
-  body += '<div class="form-group"><label>评审意见汇总</label>';
-  body += '<textarea id="br_opinion" class="form-input" rows="3" placeholder="评审意见"></textarea></div>';
-  body += '<div class="form-group"><label>评审结论<span style="color:red">*</span></label>';
-  body += '<select id="br_result" class="form-input" onchange="var d=document.getElementById(\'br_reject_group\');if(this.value===\'不通过\'){d.style.display=\'flex\'}else{d.style.display=\'none\';document.getElementById(\'br_reject_reason\').value=\'\'}">';
-  body += '<option value="通过">✅ 全员通过 — 推进至用印审批</option><option value="不通过">❌ 不通过 — 退回检测报告</option></select></div>';
-  body += '<div class="form-group" id="br_reject_group" style="display:none"><label>不通过原因<span style="color:red">*</span></label>';
-  body += '<textarea id="br_reject_reason" class="form-input" rows="3" placeholder="不通过时必填，说明具体原因以便修改"></textarea></div></div>';
-  showModal('🔍 检测报告评审 — ' + t.id, body,
-    '<button class="btn btn-primary" onclick="confirmReportReview(\'' + taskId + '\')">提交评审</button><button class="btn btn-default" onclick="closeModal()">取消</button>');
+  openReviewInitModal(taskId, '检测报告评审');
 }
+
 function confirmReportReview(taskId) {
-  var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
-  if (!t) return;
-  var cbs = document.querySelectorAll('input[name="br_reviewers"]:checked');
-  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
-  var result = document.getElementById('br_result').value;
-  var opinion = document.getElementById('br_opinion').value;
-  var rejectReason = (document.getElementById('br_reject_reason').value || '').trim();
-  if (result === '不通过' && !rejectReason) { alert('不通过时必须填写不通过原因'); return; }
-  completeWorkOrder(taskId, '检测报告评审', result);
-  var ds = fmt(new Date());
-  var reviewers = [];
-  cbs.forEach(function(cb) { reviewers.push(cb.value); });
-  t.stageHistory.push({ stage: '检测报告评审', date: ds, operator: LOGIN_USER, result: result, reviewers: reviewers.join(','), opinion: opinion, rejectReason: rejectReason || undefined });
-  if (result === '通过') {
-    t.currentStage = '用印审批';
-    alert('【原型演示】检测报告评审全员通过！\n评审人：' + reviewers.join('、') + '\n进入：用印审批');
-  } else {
-    t.currentStage = '检测报告';
-    alert('【原型演示】检测报告评审不通过，退回「检测报告」阶段。\n原因：' + rejectReason);
-  }
-  closeModal(); renderPage();
+  confirmReviewInit(taskId, '检测报告评审');
 }
 function openSealApprovalModal(taskId) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
