@@ -3732,15 +3732,19 @@ function confirmTestPlan(taskId) {
 function openReviewInitModal(taskId, stage) {
   var t = TASKS.filter(function(x) { return x.id === taskId; })[0];
   if (!t || t.currentStage !== stage) return;
-  var reviewers = ['张工', '赵工', '李工', '王工', '钱工'];
   var items = REVIEW_ITEMS[stage] || [];
+  // 构建必选人员：项目负责人 + 技术负责人
+  var mandatoryReviewers = (t.leaders || []).slice();
+  var techLead = PERSONNEL.filter(function(p) { return p.role === '技术负责人'; })[0];
+  if (techLead && mandatoryReviewers.indexOf(techLead.name) < 0) mandatoryReviewers.push(techLead.name);
   var body = '<div style="max-width:650px;margin:0 auto">';
   body += '<p style="color:#666;font-size:13px;margin-bottom:12px">任务：' + t.id + '｜' + t.proj + '</p>';
   // 选择评审人员
-  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（须含技术负责人+授权签字人，每人独立评审）</span></label>';
+  body += '<div class="form-group"><label>选择评审人员<span style="color:red">*</span> <span style="font-size:11px;color:#fa8c16">（技术负责人+项目负责人必选，不可取消）</span></label>';
   var checkboxName = 'ri_reviewers_' + stage.replace(/[^a-zA-Z]/g,'');
-  reviewers.forEach(function(r, i) {
-    body += '<label style="display:inline-block;margin-right:16px"><input type="checkbox" name="' + checkboxName + '" value="' + r + '"' + (i<2?' checked':'') + '> ' + r + '</label>';
+  PERSONNEL.forEach(function(p) {
+    var isMandatory = mandatoryReviewers.indexOf(p.name) >= 0;
+    body += '<label style="display:inline-block;margin-right:16px;margin-bottom:6px"><input type="checkbox" name="' + checkboxName + '" value="' + p.name + '"' + (isMandatory ? ' checked disabled' : '') + '> ' + p.name + ' <span style="color:#999;font-size:11px">（' + p.role + '）</span></label>';
   });
   body += '</div>';
   // 评审项预览
@@ -3767,10 +3771,17 @@ function confirmReviewInit(taskId, stage) {
   if (!t) return;
   var checkboxName = 'ri_reviewers_' + stage.replace(/[^a-zA-Z]/g,'');
   var cbs = document.querySelectorAll('input[name="' + checkboxName + '"]:checked');
-  if (cbs.length < 2) { alert('至少选择2名评审人员（须含技术负责人+授权签字人）'); return; }
-  var ds = fmt(new Date());
   var reviewers = [];
   cbs.forEach(function(cb) { reviewers.push(cb.value); });
+  // 强制加入必选人员（disabled的checkbox不会被提交，手动补充）
+  var mandatoryReviewers = (t.leaders || []).slice();
+  var techLead = PERSONNEL.filter(function(p) { return p.role === '技术负责人'; })[0];
+  if (techLead && mandatoryReviewers.indexOf(techLead.name) < 0) mandatoryReviewers.push(techLead.name);
+  mandatoryReviewers.forEach(function(m) {
+    if (reviewers.indexOf(m) < 0) reviewers.push(m);
+  });
+  if (reviewers.length < 2) { alert('至少选择2名评审人员'); return; }
+  var ds = fmt(new Date());
   var items = REVIEW_ITEMS[stage] || [];
   
   // 为每位评审人员创建独立评审工单
